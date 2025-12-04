@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Arcade</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="app" class="app">
+        <!-- Landing Page (Login) -->
+        <div id="landingPage" class="page active">
+            <div class="landing-container">
+                <div class="landing-content">
+                    <div class="landing-header">
+                        <h1 class="landing-logo">🎮 Digital Arcade</h1>
+                        <p class="landing-tagline">Win Tokens. Earn Points. Become a Legend.</p>
+                    </div>
+
+                    <div class="landing-main">
+                        <!-- Login Form -->
+                        <div class="login-section">
+                            <h2>Welcome Back!</h2>
+                            <form onsubmit="handleLogin(event)">
+                                <div class="form-group">
+                                    <label for="username">Username</label>
+                                    <input type="text" id="username" name="username" placeholder="test" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="password">Password</label>
+                                    <input type="password" id="password" name="password" placeholder="1234" required>
+                                </div>
+                                <button type="submit" class="login-btn">Enter the Arcade</button>
+                            </form>
+                            <p class="login-hint">Demo: username <strong>test</strong>, password <strong>1234</strong></p>
+                        </div>
+
+                        <!-- Leaderboard Preview -->
+                        <div class="leaderboard-section">
+                            <h3>Top Players</h3>
+                            <div class="leaderboard-list">
+                                <div class="leaderboard-item">
+                                    <span class="rank">1</span>
+                                    <span class="player-name">ArcadeKing</span>
+                                    <span class="points">45,250 pts</span>
+                                </div>
+                                <div class="leaderboard-item">
+                                    <span class="rank">2</span>
+                                    <span class="player-name">TokenMaster</span>
+                                    <span class="points">42,100 pts</span>
+                                </div>
+                                <div class="leaderboard-item">
+                                    <span class="rank">3</span>
+                                    <span class="player-name">ReactionQueen</span>
+                                    <span class="points">38,750 pts</span>
+                                </div>
+                                <div class="leaderboard-item">
+                                    <span class="rank">4</span>
+                                    <span class="player-name">FlipMaster</span>
+                                    <span class="points">35,600 pts</span>
+                                </div>
+                                <div class="leaderboard-item">
+                                    <span class="rank">5</span>
+                                    <span class="player-name">CardGamer</span>
+                                    <span class="points">32,420 pts</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- News Section -->
+                    <div class="news-section">
+                        <h3>Latest News</h3>
+                        <div class="news-items">
+                            <div class="news-item">
+                                <div class="news-date">Dec 4</div>
+                                <div class="news-content">
+                                    <h4>New Game Coming Soon: Memory Maze! 🧩</h4>
+                                    <p>Get ready for our most challenging game yet. Test your memory with increasingly difficult patterns.</p>
+                                </div>
+                            </div>
+                            <div class="news-item">
+                                <div class="news-date">Dec 1</div>
+                                <div class="news-content">
+                                    <h4>Monthly Tournament Announced 🏆</h4>
+                                    <p>Compete for exclusive rewards! Top 10 players will earn bonus tokens and special badges.</p>
+                                </div>
+                            </div>
+                            <div class="news-item">
+                                <div class="news-date">Nov 28</div>
+                                <div class="news-content">
+                                    <h4>Daily Challenges Now Live 📅</h4>
+                                    <p>Complete daily challenges to earn extra points and unlock special power-ups.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Selector Modal -->
+        <div id="themeModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Select Theme</h2>
+                <div class="theme-grid">
+                    <button class="theme-button" onclick="selectTheme('default')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);"></div>
+                        <span>Default</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('ocean')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #0ea5e9, #06b6d4);"></div>
+                        <span>Ocean</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('sunset')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #f97316, #ec4899);"></div>
+                        <span>Sunset</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('forest')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #10b981, #14b8a6);"></div>
+                        <span>Forest</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('midnight')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #1e40af, #3b82f6);"></div>
+                        <span>Midnight</span>
+                    </button>
+                </div>
+                <button class="modal-btn" onclick="closeThemeModal()">Close</button>
+            </div>
+        </div>
+
+        <!-- Main Game Page -->
+        <div id="mainPage" class="page">
+            <!-- Header -->
+            <header class="header">
+                <h1 class="logo">🎮 Digital Arcade</h1>
+                <div class="player-stats">
+                    <div class="stat">
+                        <span class="stat-label">Tokens:</span>
+                        <span class="stat-value" id="tokenDisplay">1000</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Points:</span>
+                        <span class="stat-value" id="pointsDisplay">0</span>
+                    </div>
+                    <div class="account-dropdown">
+                        <button class="account-btn" onclick="toggleAccountMenu()">
+                            <span id="displayName">Player</span>
+                            <span class="dropdown-icon">▼</span>
+                        </button>
+                        <div id="accountMenu" class="account-menu hidden">
+                            <div class="menu-header">
+                                <span id="menuUsername">test</span>
+                            </div>
+                            <hr class="menu-divider">
+                            <button class="menu-item" onclick="openSettingsModal('displayName')">
+                                <span class="menu-icon">👤</span>
+                                Change Display Name
+                            </button>
+                            <button class="menu-item" onclick="openSettingsModal('username')">
+                                <span class="menu-icon">👥</span>
+                                Change Username
+                            </button>
+                            <button class="menu-item" onclick="openSettingsModal('password')">
+                                <span class="menu-icon">🔐</span>
+                                Change Password
+                            </button>
+                            <button class="menu-item" onclick="openThemeModal()">
+                                <span class="menu-icon">🎨</span>
+                                Change Theme
+                            </button>
+                            <button class="menu-item" onclick="openShopModal()">
+                                <span class="menu-icon">🛒</span>
+                                Shop
+                            </button>
+                            <hr class="menu-divider">
+                            <button class="menu-item logout-item" onclick="handleLogout()">
+                                <span class="menu-icon">🚪</span>
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+        <!-- Shop Modal -->
+        <div id="shopModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Arcade Shop</h2>
+                <div class="shop-section">
+                    <p>Buy tokens using your points!</p>
+                    <div class="shop-row">
+                        <label for="shopTokenAmount">Tokens to buy:</label>
+                        <input type="number" id="shopTokenAmount" min="1" value="10" style="width:80px;">
+                    </div>
+                    <div class="shop-row">
+                        <span id="shopCostDisplay">Cost: 100 points</span>
+                    </div>
+                    <button class="modal-btn" onclick="handleBuyTokens()">Buy Tokens</button>
+                    <button class="modal-btn cancel" onclick="closeShopModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+            <!-- Main Container -->
+            <main class="main-container">
+            <!-- Home Screen / Game Selection -->
+            <section id="homeScreen" class="screen active">
+                <div class="welcome-section">
+                    <h2>Welcome to the Arcade!</h2>
+                    <p>Select a game to play and win tokens and points</p>
+                </div>
+
+                <div class="games-grid">
+                    <div class="game-card" onclick="startGame('coinFlip')">
+                        <div class="game-icon">🪙</div>
+                        <h3>Coin Flip</h3>
+                        <p>Simple 50/50 chance to double your bet</p>
+                        <div class="bet-amount">Wager: <span id="coinFlipBet">10</span> tokens</div>
+                    </div>
+
+                    <div class="game-card" onclick="startGame('numberGuess')">
+                        <div class="game-icon">🎲</div>
+                        <h3>Number Guess</h3>
+                        <p>Guess a number between 1-10</p>
+                        <div class="bet-amount">Wager: <span id="numberGuessBet">10</span> tokens</div>
+                    </div>
+
+                    <div class="game-card" onclick="startGame('reaction')">
+                        <div class="game-icon">⚡</div>
+                        <h3>Reaction Time</h3>
+                        <p>Test your speed and reflexes</p>
+                        <div class="bet-amount">Wager: <span id="reactionBet">15</span> tokens</div>
+                    </div>
+
+                    <div class="game-card" onclick="startGame('matchCards')">
+                        <div class="game-icon">🃏</div>
+                        <h3>Match Cards</h3>
+                        <p>Find matching pairs in the fastest time</p>
+                        <div class="bet-amount">Wager: <span id="matchCardsBet">20</span> tokens</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Game Screen -->
+            <section id="gameScreen" class="screen">
+                <div class="game-header">
+                    <button class="back-btn" onclick="returnHome()">← Back</button>
+                    <h2 id="gameTitle">Game</h2>
+                    <div class="wager-display">Wager: <span id="wagerAmount">0</span> tokens</div>
+                </div>
+
+                <!-- Coin Flip Game -->
+                <div id="coinFlipGame" class="game-content hidden">
+                    <div class="coin-flip-container">
+                        <p>Choose heads or tails!</p>
+                        <div class="flip-buttons">
+                            <button class="game-btn heads-btn" onclick="playCoinFlip('heads')">
+                                <span class="choice-icon">👤</span>
+                                <span>Heads</span>
+                            </button>
+                            <button class="game-btn tails-btn" onclick="playCoinFlip('tails')">
+                                <span class="choice-icon">🪙</span>
+                                <span>Tails</span>
+                            </button>
+                        </div>
+                        <div id="coinFlipResult" class="result-message"></div>
+                    </div>
+                </div>
+
+                <!-- Number Guess Game -->
+                <div id="numberGuessGame" class="game-content hidden">
+                    <div class="number-guess-container">
+                        <p>I'm thinking of a number between 1 and 10...</p>
+                        <div class="number-buttons">
+                            <button class="number-btn" onclick="playNumberGuess(1)">1</button>
+                            <button class="number-btn" onclick="playNumberGuess(2)">2</button>
+                            <button class="number-btn" onclick="playNumberGuess(3)">3</button>
+                            <button class="number-btn" onclick="playNumberGuess(4)">4</button>
+                            <button class="number-btn" onclick="playNumberGuess(5)">5</button>
+                            <button class="number-btn" onclick="playNumberGuess(6)">6</button>
+                            <button class="number-btn" onclick="playNumberGuess(7)">7</button>
+                            <button class="number-btn" onclick="playNumberGuess(8)">8</button>
+                            <button class="number-btn" onclick="playNumberGuess(9)">9</button>
+                            <button class="number-btn" onclick="playNumberGuess(10)">10</button>
+                        </div>
+                        <div id="numberGuessResult" class="result-message"></div>
+                    </div>
+                </div>
+
+                <!-- Reaction Time Game -->
+                <div id="reactionGame" class="game-content hidden">
+                    <div class="reaction-container">
+                        <p>Wait for the green box, then click as fast as you can!</p>
+                        <div id="reactionBox" class="reaction-box"></div>
+                        <button id="reactionStartBtn" class="game-btn" onclick="startReactionGame()">Start Game</button>
+                        <div id="reactionResult" class="result-message"></div>
+                    </div>
+                </div>
+
+                <!-- Match Cards Game -->
+                <div id="matchCardsGame" class="game-content hidden">
+                    <div class="match-cards-container">
+                        <p>Match all the pairs!</p>
+                        <div id="cardsGrid" class="cards-grid"></div>
+                        <div id="matchCardsResult" class="result-message"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Result Modal -->
+        <div id="resultModal" class="modal hidden">
+            <div class="modal-content">
+                <div id="resultIcon" class="result-icon"></div>
+                <h2 id="resultTitle">Game Over</h2>
+                <p id="resultMessage">You won 50 tokens!</p>
+                <div class="result-stats">
+                    <p>Tokens: <span id="resultTokenChange">+50</span></p>
+                    <p>Points: <span id="resultPointsChange">+100</span></p>
+                </div>
+                <button class="modal-btn" onclick="closeResult()">Play Again</button>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="settingsTitle">Change Setting</h2>
+                <form onsubmit="handleSettingsSave(event)">
+                    <div class="form-group">
+                        <label id="settingsLabel">New Value</label>
+                        <input type="text" id="settingsInput" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="modal-btn">Save</button>
+                        <button type="button" class="modal-btn cancel" onclick="closeSettingsModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
