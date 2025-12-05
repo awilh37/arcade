@@ -2,6 +2,65 @@
 const API_BASE_URL = 'https://arcade-w2f3.onrender.com';
 let authToken = localStorage.getItem('arcade-token');
 
+// ===== AUTHENTICATION UI CONTROLS =====
+
+// Toggle between login and signup forms
+function toggleSignup(event) {
+    event.preventDefault();
+    const loginSection = document.querySelector('.login-section');
+    const signupSection = document.getElementById('signupSection');
+    
+    loginSection.classList.toggle('hidden');
+    signupSection.classList.toggle('hidden');
+}
+
+// Handle signup
+async function handleSignup(event) {
+    event.preventDefault();
+
+    const username = document.getElementById('signup-username').value;
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    const display_name = document.getElementById('signup-display-name').value;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password, display_name })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast('Signup Failed', error.error || 'Could not create account', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        authToken = data.token;
+        localStorage.setItem('arcade-token', authToken);
+        
+        authState.isLoggedIn = true;
+        authState.currentUser = data.user.username;
+        authState.displayName = data.user.display_name;
+        gameState.tokens = data.user.tokens;
+        gameState.points = data.user.points;
+        
+        checkAuthStatus();
+        updateDisplay();
+        showToast('Welcome!', `Account created as ${data.user.username}`, 'success');
+        
+        // Clear form
+        document.getElementById('signup-username').value = '';
+        document.getElementById('signup-email').value = '';
+        document.getElementById('signup-password').value = '';
+        document.getElementById('signup-display-name').value = '';
+    } catch (error) {
+        console.error('Signup error:', error);
+        showToast('Signup Failed', 'Connection error. Is the server running?', 'error');
+    }
+}
+
 // ===== SHOP MODAL CONTROLS =====
 function openShopModal() {
     const modal = document.getElementById('shopModal');

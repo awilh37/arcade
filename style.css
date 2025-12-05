@@ -160,6 +160,38 @@ body {
     color: var(--primary-color);
 }
 
+.login-hint a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.login-hint a:hover {
+    color: var(--secondary-color);
+    text-decoration: underline;
+}
+
+/* Signup Section */
+.signup-section {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.signup-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    color: var(--primary-color);
+}
+
+.signup-section.hidden {
+    display: none;
+}
+}
+
 /* Leaderboard Section */
 .leaderboard-section {
     background: var(--card-bg);
