@@ -1,5 +1,5 @@
 // ===== API CONFIGURATION =====
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://arcade-w2f3.onrender.com';
 let authToken = localStorage.getItem('arcade-token');
 
 // ===== SHOP MODAL CONTROLS =====

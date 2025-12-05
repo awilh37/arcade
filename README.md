@@ -2,7 +2,7 @@
 
 A competitive digital arcade game platform with token economy, leaderboards, and a shop system.
 
-**Version**: 0.4
+**Version**: 0.5
 
 ## Features
 
