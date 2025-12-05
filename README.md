@@ -2,7 +2,7 @@
 
 A competitive digital arcade game platform with token economy, leaderboards, and a shop system.
 
-**Version**: 0.7
+**Version**: 0.8
 
 ## Features
 
@@ -209,7 +209,13 @@ const cost = amount * 10; // 10 points per token
 
 ## Changelog
 
-### v0.7 (Current)
+### v0.8 (Current)
+- 🐛 Fixed landing page leaderboard stuck on loading state
+- 🐛 Moved `escapeHtml()` function earlier in script to prevent undefined errors
+- 🔧 Changed leaderboard load event from `window.load` to `DOMContentLoaded` for better timing
+- 🔧 Added element existence checks for robustness
+
+### v0.7
 - ✨ Added dynamic live leaderboard on landing page (fetches from `/api/leaderboard`)
 - ✨ Added in-game leaderboard modal accessible to logged-in users
 - ✨ Implemented in-memory chat feature (messages cached, not persisted)

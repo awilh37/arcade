@@ -129,6 +129,13 @@ const authState = {
     displayName: 'Player'
 };
 
+// Utility: Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Theme System
 const themeSystem = {
     currentTheme: 'default',
@@ -994,12 +1001,6 @@ function closeChatModal() {
     }
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // Close modals when pressing Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
@@ -1013,12 +1014,11 @@ document.addEventListener('keydown', function(event) {
 });
 
 // Load landing page leaderboard on initial page load
-window.addEventListener('load', function() {
-    setTimeout(() => {
-        if (!authState.isLoggedIn) {
-            loadLeaderboard();
-        }
-    }, 500);
+document.addEventListener('DOMContentLoaded', function() {
+    const landingLeaderboard = document.getElementById('landingLeaderboard');
+    if (landingLeaderboard && !authState.isLoggedIn) {
+        loadLeaderboard();
+    }
 });
 
 // Start the game on page load
