@@ -1,4 +1,8 @@
-// Shop Modal Controls
+// ===== API CONFIGURATION =====
+const API_BASE_URL = 'http://localhost:5000';
+let authToken = localStorage.getItem('arcade-token');
+
+// ===== SHOP MODAL CONTROLS =====
 function openShopModal() {
     const modal = document.getElementById('shopModal');
     if (modal) {
@@ -20,7 +24,7 @@ function updateShopCost() {
 
 document.getElementById('shopTokenAmount')?.addEventListener('input', updateShopCost);
 
-function handleBuyTokens() {
+async function handleBuyTokens() {
     const amount = parseInt(document.getElementById('shopTokenAmount').value) || 0;
     const cost = amount * 10;
     if (amount < 1) {
@@ -31,11 +35,33 @@ function handleBuyTokens() {
         showToast('Not Enough Points', 'You do not have enough points.', 'error');
         return;
     }
-    gameState.points -= cost;
-    gameState.tokens += amount;
-    updateDisplay();
-    showToast('Tokens Purchased', `Bought ${amount} tokens for ${cost} points.`, 'success');
-    closeShopModal();
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/shop/buy-tokens`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ amount })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast('Error', error.error || 'Failed to buy tokens', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        gameState.tokens = data.tokens;
+        gameState.points = data.points;
+        updateDisplay();
+        showToast('Tokens Purchased', `Bought ${amount} tokens for ${cost} points.`, 'success');
+        closeShopModal();
+    } catch (error) {
+        console.error('Buy tokens error:', error);
+        showToast('Error', 'Failed to buy tokens', 'error');
+    }
 }
 // Auth State
 const authState = {
@@ -260,28 +286,45 @@ function checkAuthStatus() {
 }
 
 // Handle login
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    // Test credentials
-    if (username === 'test' && password === '1234') {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast('Login Failed', error.error || 'Invalid credentials', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        authToken = data.token;
+        localStorage.setItem('arcade-token', authToken);
+        
         authState.isLoggedIn = true;
-        authState.currentUser = username;
-        authState.displayName = 'Player';
-        gameState.tokens = 1000;
-        gameState.points = 0;
+        authState.currentUser = data.user.username;
+        authState.displayName = data.user.display_name;
+        gameState.tokens = data.user.tokens;
+        gameState.points = data.user.points;
+        
         checkAuthStatus();
         updateDisplay();
-        showToast('Welcome!', `Logged in as ${username}`, 'success');
+        showToast('Welcome!', `Logged in as ${data.user.username}`, 'success');
         
         // Clear form
         document.getElementById('username').value = '';
         document.getElementById('password').value = '';
-    } else {
-        showToast('Login Failed', 'Invalid username or password. Try test / 1234', 'error');
+    } catch (error) {
+        console.error('Login error:', error);
+        showToast('Login Failed', 'Connection error. Is the server running?', 'error');
     }
 }
 
@@ -291,6 +334,8 @@ function handleLogout() {
         authState.isLoggedIn = false;
         authState.currentUser = null;
         authState.displayName = 'Player';
+        authToken = null;
+        localStorage.removeItem('arcade-token');
         closeAccountMenu();
         checkAuthStatus();
         showToast('Logged Out', 'See you next time!', 'info');
@@ -474,8 +519,8 @@ function hideAllGameContent() {
     });
 }
 
-// Show result modal
-function showResult(won, tokenChange, pointsChange) {
+// Show result modal and submit to backend
+async function showResult(won, tokenChange, pointsChange) {
     const modal = document.getElementById('resultModal');
     const resultIcon = document.getElementById('resultIcon');
     const resultTitle = document.getElementById('resultTitle');
@@ -491,7 +536,6 @@ function showResult(won, tokenChange, pointsChange) {
         resultTokenChange.style.color = 'var(--success-color)';
         resultPointsChange.textContent = `+${pointsChange}`;
         resultPointsChange.style.color = 'var(--success-color)';
-        gameState.points += pointsChange;
         gameState.gameResults.wins++;
     } else {
         resultIcon.textContent = '😢';
@@ -505,6 +549,39 @@ function showResult(won, tokenChange, pointsChange) {
     }
 
     gameState.gameResults.totalPlayed++;
+
+    // Submit result to backend
+    if (authToken && gameState.currentGame) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/game/result`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    game_name: gameState.currentGame,
+                    won: won,
+                    points_earned: pointsChange,
+                    time_taken: matchCardsElapsed || null
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                gameState.tokens = data.user.tokens;
+                gameState.points = data.user.points;
+            } else {
+                console.error('Failed to submit game result');
+            }
+        } catch (error) {
+            console.error('Error submitting game result:', error);
+        }
+    } else {
+        // Local update if no backend
+        gameState.points += pointsChange;
+    }
+
     updateDisplay();
     modal.classList.remove('hidden');
 }

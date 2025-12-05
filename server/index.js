@@ -1,19 +1,49 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// PostgreSQL Connection Pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+// SQLite Database Setup
+const dbPath = path.join(__dirname, 'arcade.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) console.error('Database open error:', err);
+  else console.log('Connected to SQLite database at', dbPath);
 });
+
+// Promisify database operations
+const dbRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const dbGet = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const dbAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
 
 // Middleware
 app.use(cors());
@@ -21,58 +51,39 @@ app.use(express.json());
 
 // ===== DATABASE INITIALIZATION =====
 async function initializeDatabase() {
-  const client = await pool.connect();
   try {
     // Users table
-    await client.query(`
+    await dbRun(`
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        display_name VARCHAR(255),
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        display_name TEXT,
         tokens INTEGER DEFAULT 1000,
         points INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     // Game results table
-    await client.query(`
+    await dbRun(`
       CREATE TABLE IF NOT EXISTS game_results (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        game_name VARCHAR(100) NOT NULL,
-        won BOOLEAN NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        game_name TEXT NOT NULL,
+        won INTEGER NOT NULL,
         points_earned INTEGER DEFAULT 0,
-        time_taken DECIMAL(10, 2),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        time_taken REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       );
-    `);
-
-    // Leaderboard (aggregated points and wins)
-    await client.query(`
-      CREATE VIEW leaderboard AS
-      SELECT 
-        u.id,
-        u.username,
-        u.display_name,
-        u.points,
-        COUNT(CASE WHEN gr.won = true THEN 1 END) as wins,
-        COUNT(gr.id) as total_games,
-        RANK() OVER (ORDER BY u.points DESC) as rank
-      FROM users u
-      LEFT JOIN game_results gr ON u.id = gr.user_id
-      GROUP BY u.id, u.username, u.display_name, u.points
-      ORDER BY u.points DESC;
     `);
 
     console.log('Database tables initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
-  } finally {
-    client.release();
   }
 }
 
@@ -88,19 +99,20 @@ app.post('/api/auth/register', async (req, res) => {
 
   try {
     const passwordHash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, display_name) VALUES ($1, $2, $3, $4) RETURNING id, username, display_name, tokens, points',
+    await dbRun(
+      'INSERT INTO users (username, email, password_hash, display_name) VALUES (?, ?, ?, ?)',
       [username, email, passwordHash, display_name || username]
     );
 
-    const user = result.rows[0];
+    const user = await dbGet('SELECT id, username, display_name, tokens, points FROM users WHERE username = ?', [username]);
     const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({ user, token });
   } catch (error) {
-    if (error.code === '23505') {
+    if (error.message.includes('UNIQUE constraint failed')) {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -114,14 +126,12 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) {
+    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const user = result.rows[0];
     const validPassword = await bcrypt.compare(password, user.password_hash);
-
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -139,6 +149,7 @@ app.post('/api/auth/login', async (req, res) => {
       token
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -164,15 +175,16 @@ function verifyToken(req, res, next) {
 // Get current user
 app.get('/api/user', verifyToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT id, username, display_name, tokens, points FROM users WHERE id = $1',
+    const user = await dbGet(
+      'SELECT id, username, display_name, tokens, points FROM users WHERE id = ?',
       [req.userId]
     );
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(result.rows[0]);
+    res.json(user);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -186,12 +198,17 @@ app.put('/api/user/display-name', verifyToken, async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      'UPDATE users SET display_name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username, display_name, tokens, points',
+    await dbRun(
+      'UPDATE users SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [display_name, req.userId]
     );
-    res.json(result.rows[0]);
+    const user = await dbGet(
+      'SELECT id, username, display_name, tokens, points FROM users WHERE id = ?',
+      [req.userId]
+    );
+    res.json(user);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -208,25 +225,26 @@ app.post('/api/game/result', verifyToken, async (req, res) => {
 
   try {
     // Insert game result
-    await pool.query(
-      'INSERT INTO game_results (user_id, game_name, won, points_earned, time_taken) VALUES ($1, $2, $3, $4, $5)',
-      [req.userId, game_name, won, points_earned || 0, time_taken || null]
+    await dbRun(
+      'INSERT INTO game_results (user_id, game_name, won, points_earned, time_taken) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, game_name, won ? 1 : 0, points_earned || 0, time_taken || null]
     );
 
     // Update user points
-    await pool.query(
-      'UPDATE users SET points = points + $1 WHERE id = $2',
+    await dbRun(
+      'UPDATE users SET points = points + ? WHERE id = ?',
       [points_earned || 0, req.userId]
     );
 
     // Get updated user
-    const userResult = await pool.query(
-      'SELECT id, username, display_name, tokens, points FROM users WHERE id = $1',
+    const user = await dbGet(
+      'SELECT id, username, display_name, tokens, points FROM users WHERE id = ?',
       [req.userId]
     );
 
-    res.json({ success: true, user: userResult.rows[0] });
+    res.json({ success: true, user });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -234,12 +252,13 @@ app.post('/api/game/result', verifyToken, async (req, res) => {
 // Get user game history
 app.get('/api/game/history', verifyToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT id, game_name, won, points_earned, time_taken, created_at FROM game_results WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
+    const rows = await dbAll(
+      'SELECT id, game_name, won, points_earned, time_taken, created_at FROM game_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
       [req.userId]
     );
-    res.json(result.rows);
+    res.json(rows);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -249,11 +268,23 @@ app.get('/api/game/history', verifyToken, async (req, res) => {
 // Get leaderboard (top 100)
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT id, username, display_name, points, wins, total_games, rank FROM leaderboard LIMIT 100'
-    );
-    res.json(result.rows);
+    const rows = await dbAll(`
+      SELECT 
+        u.id,
+        u.username,
+        u.display_name,
+        u.points,
+        COUNT(CASE WHEN gr.won = 1 THEN 1 END) as wins,
+        COUNT(gr.id) as total_games
+      FROM users u
+      LEFT JOIN game_results gr ON u.id = gr.user_id
+      GROUP BY u.id
+      ORDER BY u.points DESC
+      LIMIT 100
+    `);
+    res.json(rows);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -261,15 +292,29 @@ app.get('/api/leaderboard', async (req, res) => {
 // Get user rank
 app.get('/api/leaderboard/rank', verifyToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT rank, points, wins, total_games FROM leaderboard WHERE id = $1',
-      [req.userId]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found on leaderboard' });
-    }
-    res.json(result.rows[0]);
+    const result = await dbAll(`
+      SELECT 
+        u.id,
+        u.points,
+        COUNT(CASE WHEN gr.won = 1 THEN 1 END) as wins,
+        COUNT(gr.id) as total_games
+      FROM users u
+      LEFT JOIN game_results gr ON u.id = gr.user_id
+      GROUP BY u.id
+      ORDER BY u.points DESC
+    `);
+
+    const rank = result.findIndex(r => r.id === req.userId) + 1;
+    const userData = result.find(r => r.id === req.userId);
+
+    res.json({
+      rank,
+      points: userData.points,
+      wins: userData.wins,
+      total_games: userData.total_games
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -287,20 +332,21 @@ app.post('/api/shop/buy-tokens', verifyToken, async (req, res) => {
   const cost = amount * 10; // 10 points per token
 
   try {
-    const userResult = await pool.query('SELECT points, tokens FROM users WHERE id = $1', [req.userId]);
-    const user = userResult.rows[0];
+    const user = await dbGet('SELECT points, tokens FROM users WHERE id = ?', [req.userId]);
 
     if (user.points < cost) {
       return res.status(400).json({ error: 'Not enough points' });
     }
 
-    const result = await pool.query(
-      'UPDATE users SET points = points - $1, tokens = tokens + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING tokens, points',
+    await dbRun(
+      'UPDATE users SET points = points - ?, tokens = tokens + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [cost, amount, req.userId]
     );
 
-    res.json({ success: true, tokens: result.rows[0].tokens, points: result.rows[0].points });
+    const updated = await dbGet('SELECT tokens, points FROM users WHERE id = ?', [req.userId]);
+    res.json({ success: true, tokens: updated.tokens, points: updated.points });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
