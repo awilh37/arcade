@@ -2,7 +2,7 @@
 
 A competitive digital arcade game platform with token economy, leaderboards, and a shop system.
 
-**Version**: 0.9
+**Version**: 0.10
 
 ## Features
 
@@ -209,7 +209,15 @@ const cost = amount * 10; // 10 points per token
 
 ## Changelog
 
-### v0.9 (Current)
+### v0.10 (Current)
+- ✨ User role system with pyramid hierarchy: player → muted → admin → owner
+- ✨ Admin panel for user management (change roles, modify tokens/points)
+- 🔒 Banned users are rejected at login
+- 🔒 Muted users cannot send chat messages
+- 🔒 Permission system: admins cannot modify owners, only owners can create owners
+- 🔧 Added role field to user authentication responses
+
+### v0.9
 - ✅ Fixed landing page leaderboard - now uses same logic as in-game modal
 - 🔧 Simplified loadLeaderboard to support both containers (landing + in-game)
 - 🔧 Added proper timing with init() to ensure DOM is ready

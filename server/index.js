@@ -62,6 +62,7 @@ async function initializeDatabase() {
         display_name TEXT,
         tokens INTEGER DEFAULT 1000,
         points INTEGER DEFAULT 0,
+        role TEXT DEFAULT 'player' CHECK(role IN ('player', 'muted', 'admin', 'banned', 'owner')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -79,6 +80,11 @@ async function initializeDatabase() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       );
+    `);
+
+    // Set awilh as owner if they exist
+    await dbRun(`
+      UPDATE users SET role = 'owner' WHERE username = 'awilh' AND role != 'owner'
     `);
 
     console.log('Database tables initialized successfully');
@@ -104,7 +110,7 @@ app.post('/api/auth/register', async (req, res) => {
       [username, email, passwordHash, display_name || username]
     );
 
-    const user = await dbGet('SELECT id, username, display_name, tokens, points FROM users WHERE username = ?', [username]);
+    const user = await dbGet('SELECT id, username, display_name, tokens, points, role FROM users WHERE username = ?', [username]);
     const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({ user, token });
@@ -131,6 +137,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check if user is banned
+    if (user.role === 'banned') {
+      return res.status(403).json({ error: 'Your account has been banned' });
+    }
+
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -144,7 +155,8 @@ app.post('/api/auth/login', async (req, res) => {
         username: user.username,
         display_name: user.display_name,
         tokens: user.tokens,
-        points: user.points
+        points: user.points,
+        role: user.role
       },
       token
     });
@@ -176,7 +188,7 @@ function verifyToken(req, res, next) {
 app.get('/api/user', verifyToken, async (req, res) => {
   try {
     const user = await dbGet(
-      'SELECT id, username, display_name, tokens, points FROM users WHERE id = ?',
+      'SELECT id, username, display_name, tokens, points, role FROM users WHERE id = ?',
       [req.userId]
     );
     if (!user) {
@@ -203,7 +215,7 @@ app.put('/api/user/display-name', verifyToken, async (req, res) => {
       [display_name, req.userId]
     );
     const user = await dbGet(
-      'SELECT id, username, display_name, tokens, points FROM users WHERE id = ?',
+      'SELECT id, username, display_name, tokens, points, role FROM users WHERE id = ?',
       [req.userId]
     );
     res.json(user);
@@ -313,6 +325,167 @@ app.get('/api/leaderboard/rank', verifyToken, async (req, res) => {
       wins: userData.wins,
       total_games: userData.total_games
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== ADMIN ENDPOINTS =====
+
+// Helper function to check if user can perform admin actions
+async function canUserManageOthers(userId) {
+  const user = await dbGet('SELECT role FROM users WHERE id = ?', [userId]);
+  return user && (user.role === 'admin' || user.role === 'owner');
+}
+
+// Helper function to check if target user can be modified
+async function canModifyUser(adminRole, targetRole) {
+  // Admins cannot modify owners
+  if (adminRole === 'admin' && targetRole === 'owner') {
+    return false;
+  }
+  // Owners can modify anyone
+  return adminRole === 'owner' ? true : (adminRole === 'admin');
+}
+
+// Get all users (for admin panel)
+app.get('/api/admin/users', verifyToken, async (req, res) => {
+  try {
+    if (!(await canUserManageOthers(req.userId))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const users = await dbAll(`
+      SELECT id, username, display_name, tokens, points, role, created_at FROM users ORDER BY username
+    `);
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Search users by username
+app.get('/api/admin/users/search/:username', verifyToken, async (req, res) => {
+  try {
+    if (!(await canUserManageOthers(req.userId))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { username } = req.params;
+    const users = await dbAll(
+      'SELECT id, username, display_name, tokens, points, role, created_at FROM users WHERE username LIKE ? ORDER BY username LIMIT 20',
+      [`%${username}%`]
+    );
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Change user role
+app.post('/api/admin/user/change-role', verifyToken, async (req, res) => {
+  const { targetUserId, newRole } = req.body;
+
+  if (!targetUserId || !newRole) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  if (!['player', 'muted', 'admin', 'banned', 'owner'].includes(newRole)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
+  try {
+    const admin = await dbGet('SELECT role FROM users WHERE id = ?', [req.userId]);
+    if (!(admin && (admin.role === 'admin' || admin.role === 'owner'))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const target = await dbGet('SELECT role FROM users WHERE id = ?', [targetUserId]);
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if admin can modify this user
+    if (!(await canModifyUser(admin.role, target.role))) {
+      return res.status(403).json({ error: 'Cannot modify owner accounts' });
+    }
+
+    // Prevent changing owner role unless you're an owner changing it to something else
+    if (target.role === 'owner' && admin.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot modify owner accounts' });
+    }
+
+    // Prevent admins from promoting themselves to owner
+    if (admin.role === 'admin' && newRole === 'owner') {
+      return res.status(403).json({ error: 'Only owners can promote to owner' });
+    }
+
+    await dbRun(
+      'UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newRole, targetUserId]
+    );
+
+    const updated = await dbGet(
+      'SELECT id, username, display_name, tokens, points, role FROM users WHERE id = ?',
+      [targetUserId]
+    );
+
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Modify user tokens/points
+app.post('/api/admin/user/modify-resources', verifyToken, async (req, res) => {
+  const { targetUserId, tokensChange, pointsChange } = req.body;
+
+  if (!targetUserId) {
+    return res.status(400).json({ error: 'Missing target user ID' });
+  }
+
+  if ((tokensChange !== undefined && typeof tokensChange !== 'number') ||
+      (pointsChange !== undefined && typeof pointsChange !== 'number')) {
+    return res.status(400).json({ error: 'Changes must be numbers' });
+  }
+
+  try {
+    const admin = await dbGet('SELECT role FROM users WHERE id = ?', [req.userId]);
+    if (!(admin && (admin.role === 'admin' || admin.role === 'owner'))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const target = await dbGet('SELECT role, tokens, points FROM users WHERE id = ?', [targetUserId]);
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!(await canModifyUser(admin.role, target.role))) {
+      return res.status(403).json({ error: 'Cannot modify owner accounts' });
+    }
+
+    const newTokens = tokensChange !== undefined ? target.tokens + tokensChange : target.tokens;
+    const newPoints = pointsChange !== undefined ? target.points + pointsChange : target.points;
+
+    if (newTokens < 0 || newPoints < 0) {
+      return res.status(400).json({ error: 'Resources cannot go below 0' });
+    }
+
+    await dbRun(
+      'UPDATE users SET tokens = ?, points = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newTokens, newPoints, targetUserId]
+    );
+
+    const updated = await dbGet(
+      'SELECT id, username, display_name, tokens, points, role FROM users WHERE id = ?',
+      [targetUserId]
+    );
+
+    res.json({ success: true, user: updated });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });

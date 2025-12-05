@@ -43,6 +43,7 @@ async function handleSignup(event) {
         authState.isLoggedIn = true;
         authState.currentUser = data.user.username;
         authState.displayName = data.user.display_name;
+        authState.role = data.user.role;
         gameState.tokens = data.user.tokens;
         gameState.points = data.user.points;
         
@@ -126,7 +127,8 @@ async function handleBuyTokens() {
 const authState = {
     isLoggedIn: false,
     currentUser: null,
-    displayName: 'Player'
+    displayName: 'Player',
+    role: 'player'
 };
 
 // Utility: Escape HTML to prevent XSS
@@ -378,6 +380,7 @@ async function handleLogin(event) {
         authState.isLoggedIn = true;
         authState.currentUser = data.user.username;
         authState.displayName = data.user.display_name;
+        authState.role = data.user.role;
         gameState.tokens = data.user.tokens;
         gameState.points = data.user.points;
         
@@ -400,6 +403,7 @@ function handleLogout() {
         authState.isLoggedIn = false;
         authState.currentUser = null;
         authState.displayName = 'Player';
+        authState.role = 'player';
         authToken = null;
         localStorage.removeItem('arcade-token');
         closeAccountMenu();
@@ -942,6 +946,13 @@ function closeLeaderboardModal() {
 
 function sendChatMessage(event) {
     event.preventDefault();
+    
+    // Check if user is muted
+    if (authState.role === 'muted') {
+        showToast('Muted', 'You are muted and cannot send messages', 'error');
+        return;
+    }
+    
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     
@@ -1030,3 +1041,200 @@ window.addEventListener('load', function() {
         }
     }, 100);
 });
+
+// ===== ADMIN PANEL FUNCTIONS =====
+
+// Update admin menu visibility based on role
+function updateAdminMenuVisibility() {
+    const adminSection = document.getElementById('adminMenuSection');
+    if (adminSection) {
+        if (authState.role === 'admin' || authState.role === 'owner') {
+            adminSection.classList.remove('hidden');
+        } else {
+            adminSection.classList.add('hidden');
+        }
+    }
+}
+
+// Open admin panel
+function openAdminPanel() {
+    const modal = document.getElementById('adminPanelModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Clear search
+        document.getElementById('adminSearchInput').value = '';
+        document.getElementById('adminUsersList').innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">Enter a username to search for users</p>';
+    }
+}
+
+// Close admin panel
+function closeAdminPanel() {
+    const modal = document.getElementById('adminPanelModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Search for users in admin panel
+async function adminSearchUsers() {
+    const searchInput = document.getElementById('adminSearchInput').value.trim();
+    const usersList = document.getElementById('adminUsersList');
+
+    if (!searchInput) {
+        usersList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">Enter a username to search for users</p>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/users/search/${encodeURIComponent(searchInput)}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast('Error', error.error || 'Failed to search users', 'error');
+            return;
+        }
+
+        const users = await response.json();
+
+        if (users.length === 0) {
+            usersList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No users found</p>';
+            return;
+        }
+
+        usersList.innerHTML = users.map(user => `
+            <div class="admin-user-card">
+                <div class="admin-user-header">
+                    <div class="admin-user-name">
+                        <strong>${escapeHtml(user.username)}</strong>
+                        <span style="color: var(--text-secondary); font-size: 0.9rem;">(${escapeHtml(user.display_name)})</span>
+                    </div>
+                    <span class="admin-role-badge ${user.role}">${user.role.toUpperCase()}</span>
+                </div>
+                <div class="admin-user-stats">
+                    <div class="admin-user-stat">
+                        <span>Tokens:</span>
+                        <strong>${user.tokens}</strong>
+                    </div>
+                    <div class="admin-user-stat">
+                        <span>Points:</span>
+                        <strong>${user.points}</strong>
+                    </div>
+                    <div class="admin-user-stat">
+                        <span>Joined:</span>
+                        <strong>${new Date(user.created_at).toLocaleDateString()}</strong>
+                    </div>
+                </div>
+                <div class="admin-user-actions">
+                    <div class="admin-action-row">
+                        <select class="admin-action-btn" id="roleSelect_${user.id}" style="background: var(--dark-bg); padding: 0.5rem;">
+                            <option value="">Change Role...</option>
+                            ${authState.role === 'owner' ? '<option value="owner">👑 Owner</option>' : ''}
+                            <option value="admin">⚙️ Admin</option>
+                            <option value="player">👤 Player</option>
+                            <option value="muted">🔇 Muted</option>
+                            <option value="banned">🚫 Banned</option>
+                        </select>
+                        <button class="admin-action-btn" onclick="adminChangeRole(${user.id}, 'roleSelect_${user.id}')">Apply</button>
+                    </div>
+                    <div class="admin-action-row">
+                        <input type="number" id="tokenChange_${user.id}" placeholder="Tokens (±)" style="flex: 1; padding: 0.5rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 0.35rem; color: var(--text-primary);">
+                        <input type="number" id="pointsChange_${user.id}" placeholder="Points (±)" style="flex: 1; padding: 0.5rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 0.35rem; color: var(--text-primary);">
+                        <button class="admin-action-btn success" onclick="adminModifyResources(${user.id})">Update</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Search error:', error);
+        showToast('Error', 'Failed to search users', 'error');
+    }
+}
+
+// Change user role
+async function adminChangeRole(userId, selectId) {
+    const select = document.getElementById(selectId);
+    const newRole = select.value;
+
+    if (!newRole) {
+        showToast('Error', 'Please select a role', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/user/change-role`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ targetUserId: userId, newRole })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast('Error', error.error || 'Failed to change role', 'error');
+            return;
+        }
+
+        const result = await response.json();
+        showToast('Success', `User role changed to ${newRole}`, 'success');
+        
+        // Refresh the search results
+        setTimeout(() => adminSearchUsers(), 500);
+    } catch (error) {
+        console.error('Role change error:', error);
+        showToast('Error', 'Failed to change role', 'error');
+    }
+}
+
+// Modify user resources
+async function adminModifyResources(userId) {
+    const tokenInput = document.getElementById(`tokenChange_${userId}`);
+    const pointsInput = document.getElementById(`pointsChange_${userId}`);
+
+    const tokensChange = tokenInput.value ? parseInt(tokenInput.value) : undefined;
+    const pointsChange = pointsInput.value ? parseInt(pointsInput.value) : undefined;
+
+    if (!tokensChange && !pointsChange) {
+        showToast('Error', 'Enter at least one value to modify', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/user/modify-resources`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ targetUserId: userId, tokensChange, pointsChange })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast('Error', error.error || 'Failed to modify resources', 'error');
+            return;
+        }
+
+        const result = await response.json();
+        showToast('Success', 'User resources updated', 'success');
+        
+        // Refresh the search results
+        setTimeout(() => adminSearchUsers(), 500);
+    } catch (error) {
+        console.error('Modify resources error:', error);
+        showToast('Error', 'Failed to modify resources', 'error');
+    }
+}
+
+// Update display to show admin menu when appropriate
+const originalUpdateDisplay = window.updateDisplay;
+window.updateDisplay = function() {
+    if (originalUpdateDisplay) {
+        originalUpdateDisplay.call(this);
+    }
+    updateAdminMenuVisibility();
+};
+
