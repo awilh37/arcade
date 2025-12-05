@@ -853,14 +853,172 @@ function endMatchCardsGame(won) {
     setTimeout(() => setupMatchCardsGame(), 1200);
 }
 
+// ===== IN-MEMORY CHAT SYSTEM =====
+let chatMessages = [];
+
+async function loadLeaderboard() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/leaderboard`);
+        if (!response.ok) throw new Error('Failed to fetch leaderboard');
+        
+        const players = await response.json();
+        const container = document.getElementById('leaderboardContainer') || document.getElementById('landingLeaderboard');
+        
+        if (!container) return;
+        
+        if (players.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No players yet. Be the first!</p>';
+            return;
+        }
+        
+        let html = '';
+        players.slice(0, 50).forEach((player, index) => {
+            let medal = '';
+            let rankClass = '';
+            if (index === 0) {
+                medal = '🥇';
+                rankClass = 'gold';
+            } else if (index === 1) {
+                medal = '🥈';
+                rankClass = 'silver';
+            } else if (index === 2) {
+                medal = '🥉';
+                rankClass = 'bronze';
+            }
+            
+            html += `
+                <div class="leaderboard-item">
+                    <div class="leaderboard-rank ${rankClass}">${medal || index + 1}</div>
+                    <div class="leaderboard-player">
+                        <div class="leaderboard-username">${escapeHtml(player.username)}</div>
+                        <div class="leaderboard-display-name">${escapeHtml(player.display_name)}</div>
+                    </div>
+                    <div style="text-align: center; color: var(--text-secondary);">
+                        <div style="font-size: 0.8rem;">${player.wins}W</div>
+                    </div>
+                    <div class="leaderboard-points">${player.points}</div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        const container = document.getElementById('leaderboardContainer') || document.getElementById('landingLeaderboard');
+        if (container) {
+            container.innerHTML = '<p style="text-align: center; color: var(--danger-color); padding: 1rem;">Failed to load leaderboard</p>';
+        }
+    }
+}
+
+function openLeaderboardModal() {
+    const modal = document.getElementById('leaderboardModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        loadLeaderboard();
+    }
+}
+
+function closeLeaderboardModal() {
+    const modal = document.getElementById('leaderboardModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function sendChatMessage(event) {
+    event.preventDefault();
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    
+    if (!text) return;
+    
+    const currentUser = authState.displayName || authState.currentUser || 'Anonymous';
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    chatMessages.push({
+        username: currentUser,
+        text: text,
+        timestamp: timestamp,
+        isOwn: true
+    });
+    
+    input.value = '';
+    renderChatMessages();
+    
+    // Auto-scroll to bottom
+    const chatContainer = document.getElementById('chatMessages');
+    if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+}
+
+function renderChatMessages() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    
+    if (chatMessages.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No messages yet. Be the first to chat!</p>';
+        return;
+    }
+    
+    let html = '';
+    chatMessages.forEach(msg => {
+        const ownClass = msg.isOwn ? 'own' : '';
+        html += `
+            <div class="chat-message ${ownClass}">
+                <div class="chat-username">${escapeHtml(msg.username)}</div>
+                <div class="chat-text">${escapeHtml(msg.text)}</div>
+                <div class="chat-timestamp">${msg.timestamp}</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function openChatModal() {
+    const modal = document.getElementById('chatModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        renderChatMessages();
+        const input = document.getElementById('chatInput');
+        if (input) input.focus();
+    }
+}
+
+function closeChatModal() {
+    const modal = document.getElementById('chatModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Close modals when pressing Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
+        closeLeaderboardModal();
+        closeChatModal();
         const settingsModal = document.getElementById('settingsModal');
         if (settingsModal && !settingsModal.classList.contains('hidden')) {
             closeSettingsModal();
         }
     }
+});
+
+// Load landing page leaderboard on initial page load
+window.addEventListener('load', function() {
+    setTimeout(() => {
+        if (!authState.isLoggedIn) {
+            loadLeaderboard();
+        }
+    }, 500);
 });
 
 // Start the game on page load

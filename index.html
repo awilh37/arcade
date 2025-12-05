@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Arcade</title>
-    <link rel="stylesheet" href="style.css?v=0.6">
+    <link rel="stylesheet" href="style.css?v=0.7">
 </head>
 <body>
     <!-- Toast Notification Container -->
@@ -66,32 +66,8 @@
                         <!-- Leaderboard Preview -->
                         <div class="leaderboard-section">
                             <h3>Top Players</h3>
-                            <div class="leaderboard-list">
-                                <div class="leaderboard-item">
-                                    <span class="rank">1</span>
-                                    <span class="player-name">ArcadeKing</span>
-                                    <span class="points">45,250 pts</span>
-                                </div>
-                                <div class="leaderboard-item">
-                                    <span class="rank">2</span>
-                                    <span class="player-name">TokenMaster</span>
-                                    <span class="points">42,100 pts</span>
-                                </div>
-                                <div class="leaderboard-item">
-                                    <span class="rank">3</span>
-                                    <span class="player-name">ReactionQueen</span>
-                                    <span class="points">38,750 pts</span>
-                                </div>
-                                <div class="leaderboard-item">
-                                    <span class="rank">4</span>
-                                    <span class="player-name">FlipMaster</span>
-                                    <span class="points">35,600 pts</span>
-                                </div>
-                                <div class="leaderboard-item">
-                                    <span class="rank">5</span>
-                                    <span class="player-name">CardGamer</span>
-                                    <span class="points">32,420 pts</span>
-                                </div>
+                            <div id="landingLeaderboard" class="leaderboard-list">
+                                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">Loading leaderboard...</p>
                             </div>
                         </div>
                     </div>
@@ -171,6 +147,12 @@
                         <span class="stat-label">Points:</span>
                         <span class="stat-value" id="pointsDisplay">0</span>
                     </div>
+                    <button class="header-btn" onclick="openLeaderboardModal()" title="View Leaderboard">
+                        <span>🏆</span>
+                    </button>
+                    <button class="header-btn" onclick="openChatModal()" title="Chat">
+                        <span>💬</span>
+                    </button>
                     <div class="account-dropdown">
                         <button class="account-btn" onclick="toggleAccountMenu()">
                             <span id="displayName">Player</span>
@@ -367,10 +349,40 @@
             </div>
         </div>
 
+        <!-- Leaderboard Modal -->
+        <div id="leaderboardModal" class="modal hidden">
+            <div class="modal-content leaderboard-modal-content">
+                <div class="modal-header">
+                    <h2>Global Leaderboard</h2>
+                    <button class="close-btn" onclick="closeLeaderboardModal()">&times;</button>
+                </div>
+                <div id="leaderboardContainer" class="leaderboard-list">
+                    <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">Loading leaderboard...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Modal -->
+        <div id="chatModal" class="modal hidden">
+            <div class="modal-content chat-modal-content">
+                <div class="modal-header">
+                    <h2>Community Chat</h2>
+                    <button class="close-btn" onclick="closeChatModal()">&times;</button>
+                </div>
+                <div id="chatMessages" class="chat-messages">
+                    <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No messages yet. Be the first to chat!</p>
+                </div>
+                <form class="chat-input-form" onsubmit="sendChatMessage(event)">
+                    <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200" required>
+                    <button type="submit" class="chat-send-btn">Send</button>
+                </form>
+            </div>
+        </div>
+
             </main>
         </div>
     </div>
 
-    <script src="script.js?v=0.6"></script>
+    <script src="script.js?v=0.7"></script>
 </body>
 </html>

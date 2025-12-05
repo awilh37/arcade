@@ -2,14 +2,16 @@
 
 A competitive digital arcade game platform with token economy, leaderboards, and a shop system.
 
-**Version**: 0.6
+**Version**: 0.7
 
 ## Features
 
 - **4 Playable Games**: Coin Flip, Number Guess, Reaction Time, and Match Cards
 - **Token & Points System**: Earn points from games and buy tokens using points
 - **User Accounts**: Register, login, and manage your profile
-- **Leaderboard**: Compete globally with other players
+- **Live Leaderboard**: Dynamic global leaderboard sorted by points with medals for top 3
+- **In-Game Leaderboard**: View leaderboards while playing
+- **Chat Feature**: In-memory community chat (messages not persisted to backend)
 - **Themes**: Customizable color themes (Default, Ocean, Sunset, Forest, Midnight)
 - **Shop System**: Buy tokens using your points
 
@@ -205,13 +207,34 @@ Modify token pricing in `handleBuyTokens`:
 const cost = amount * 10; // 10 points per token
 ```
 
+## Changelog
+
+### v0.7 (Current)
+- ✨ Added dynamic live leaderboard on landing page (fetches from `/api/leaderboard`)
+- ✨ Added in-game leaderboard modal accessible to logged-in users
+- ✨ Implemented in-memory chat feature (messages cached, not persisted)
+- 🎨 Added leaderboard/chat button icons to header
+- 🎨 Enhanced modal styling with header/close buttons for leaderboards and chat
+- 🔧 Added user role system foundation (ready for implementation in next version)
+
+### v0.6
+- ✨ Added signup form with account creation
+- ✨ Integrated backend authentication (register/login)
+- 🔧 Updated version caching for CSS/JS files
+
+### v0.5
+- ✨ Integrated frontend with backend API
+- ✨ Added game result tracking and submission
+- ✨ Implemented shop modal with token purchases
+
 ## Future Enhancements
 
+- [ ] User role system (owner/admin/player/banned) with permission checking
+- [ ] Persistent chat with backend storage
 - [ ] Email verification
 - [ ] Seasonal leaderboards
 - [ ] Achievement badges
 - [ ] More games (Memory Maze, Quick Math, etc.)
-- [ ] Chat/Multiplayer
 - [ ] Mobile app
 - [ ] Analytics dashboard
 - [ ] Anti-cheat measures
