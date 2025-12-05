@@ -869,12 +869,17 @@ async function loadLeaderboard() {
         if (!response.ok) throw new Error('Failed to fetch leaderboard');
         
         const players = await response.json();
-        const container = document.getElementById('leaderboardContainer') || document.getElementById('landingLeaderboard');
+        // Support both in-game modal and landing page
+        const containers = [
+            document.getElementById('leaderboardContainer'),
+            document.getElementById('landingLeaderboard')
+        ].filter(c => c !== null);
         
-        if (!container) return;
+        if (containers.length === 0) return;
         
         if (players.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No players yet. Be the first!</p>';
+            const html = '<p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No players yet. Be the first!</p>';
+            containers.forEach(c => c.innerHTML = html);
             return;
         }
         
@@ -908,13 +913,15 @@ async function loadLeaderboard() {
             `;
         });
         
-        container.innerHTML = html;
+        containers.forEach(c => c.innerHTML = html);
     } catch (error) {
         console.error('Error loading leaderboard:', error);
-        const container = document.getElementById('leaderboardContainer') || document.getElementById('landingLeaderboard');
-        if (container) {
-            container.innerHTML = '<p style="text-align: center; color: var(--danger-color); padding: 1rem;">Failed to load leaderboard</p>';
-        }
+        const containers = [
+            document.getElementById('leaderboardContainer'),
+            document.getElementById('landingLeaderboard')
+        ].filter(c => c !== null);
+        const html = '<p style="text-align: center; color: var(--danger-color); padding: 1rem;">Failed to load leaderboard</p>';
+        containers.forEach(c => c.innerHTML = html);
     }
 }
 
@@ -1013,13 +1020,13 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-// Load landing page leaderboard on initial page load
-document.addEventListener('DOMContentLoaded', function() {
-    const landingLeaderboard = document.getElementById('landingLeaderboard');
-    if (landingLeaderboard && !authState.isLoggedIn) {
-        loadLeaderboard();
-    }
-});
-
 // Start the game on page load
-window.addEventListener('load', init);
+window.addEventListener('load', function() {
+    init();
+    // Load landing leaderboard if on landing page
+    setTimeout(() => {
+        if (!authState.isLoggedIn) {
+            loadLeaderboard();
+        }
+    }, 100);
+});

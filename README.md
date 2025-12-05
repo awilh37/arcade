@@ -2,7 +2,7 @@
 
 A competitive digital arcade game platform with token economy, leaderboards, and a shop system.
 
-**Version**: 0.8
+**Version**: 0.9
 
 ## Features
 
@@ -209,7 +209,12 @@ const cost = amount * 10; // 10 points per token
 
 ## Changelog
 
-### v0.8 (Current)
+### v0.9 (Current)
+- ✅ Fixed landing page leaderboard - now uses same logic as in-game modal
+- 🔧 Simplified loadLeaderboard to support both containers (landing + in-game)
+- 🔧 Added proper timing with init() to ensure DOM is ready
+
+### v0.8
 - 🐛 Fixed landing page leaderboard stuck on loading state
 - 🐛 Moved `escapeHtml()` function earlier in script to prevent undefined errors
 - 🔧 Changed leaderboard load event from `window.load` to `DOMContentLoaded` for better timing
