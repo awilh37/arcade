@@ -2,7 +2,7 @@
 
 A competitive digital arcade game platform with token economy, leaderboards, and a shop system.
 
-**Version**: 0.10
+**Version**: 0.12
 
 ## Features
 
@@ -209,7 +209,17 @@ const cost = amount * 10; // 10 points per token
 
 ## Changelog
 
-### v0.10 (Current)
+### v0.12
+- Bumped README and frontend cache-bust versions to v0.12 (minor docs update).
+
+### v0.11
+- Admin panel availablilty
+- Play a game & token deduction
+- New accounts start at 100 tokens
+- Leaderboard scrollbar
+- In-app system messages
+
+### v0.10
 - ✨ User role system with pyramid hierarchy: player → muted → admin → owner
 - ✨ Admin panel for user management (change roles, modify tokens/points)
 - 🔒 Banned users are rejected at login
