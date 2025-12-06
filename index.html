@@ -403,6 +403,28 @@
             </div>
         </div>
 
+        <!-- Confirm Modal -->
+        <div id="confirmModal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="confirmTitle">Confirm</h2>
+                <p id="confirmMessage">Are you sure?</p>
+                <div class="form-actions">
+                    <button class="modal-btn" id="confirmCancelBtn">Cancel</button>
+                    <button class="modal-btn" id="confirmOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- In-App Message Modal -->
+        <div id="inAppModal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="inAppTitle">Message</h2>
+                <p id="inAppMessage"></p>
+                <div class="form-actions">
+                    <button class="modal-btn" onclick="closeInAppMessage()">Close</button>
+                </div>
+            </div>
+        </div>
             </main>
         </div>
     </div>

@@ -226,7 +226,7 @@ const themeSystem = {
 };
 // Game State
 const gameState = {
-    tokens: 1000,
+    tokens: 100,
     points: 0,
     currentGame: null,
     currentWager: 0,
@@ -347,6 +347,7 @@ function checkAuthStatus() {
         landingPage.classList.remove('active');
         mainPage.classList.add('active');
         updateUserDisplay();
+        updateAdminMenuVisibility();
     } else {
         landingPage.classList.add('active');
         mainPage.classList.remove('active');
@@ -399,7 +400,7 @@ async function handleLogin(event) {
 
 // Handle logout
 function handleLogout() {
-    if (confirm('Are you sure you want to logout?')) {
+    openConfirm('Are you sure you want to logout?', async () => {
         authState.isLoggedIn = false;
         authState.currentUser = null;
         authState.displayName = 'Player';
@@ -408,8 +409,8 @@ function handleLogout() {
         localStorage.removeItem('arcade-token');
         closeAccountMenu();
         checkAuthStatus();
-        showToast('Logged Out', 'See you next time!', 'info');
-    }
+        showInAppMessage('Logged Out', 'See you next time!');
+    });
 }
 
 // Toggle account menu
@@ -633,7 +634,8 @@ async function showResult(won, tokenChange, pointsChange) {
                     game_name: gameState.currentGame,
                     won: won,
                     points_earned: pointsChange,
-                    time_taken: matchCardsElapsed || null
+                    time_taken: matchCardsElapsed || null,
+                    wager: gameState.currentWager
                 })
             });
 
@@ -1237,4 +1239,46 @@ window.updateDisplay = function() {
     }
     updateAdminMenuVisibility();
 };
+
+// ===== Confirmation & In-App Message Helpers =====
+function openConfirm(message, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) return;
+    document.getElementById('confirmMessage').textContent = message;
+    modal.classList.remove('hidden');
+
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    function cleanup() {
+        okBtn.removeEventListener('click', okHandler);
+        cancelBtn.removeEventListener('click', cancelHandler);
+        modal.classList.add('hidden');
+    }
+
+    function okHandler() {
+        cleanup();
+        if (typeof onConfirm === 'function') onConfirm();
+    }
+
+    function cancelHandler() {
+        cleanup();
+    }
+
+    okBtn.addEventListener('click', okHandler);
+    cancelBtn.addEventListener('click', cancelHandler);
+}
+
+function showInAppMessage(title, message) {
+    const modal = document.getElementById('inAppModal');
+    if (!modal) return;
+    document.getElementById('inAppTitle').textContent = title;
+    document.getElementById('inAppMessage').textContent = message;
+    modal.classList.remove('hidden');
+}
+
+function closeInAppMessage() {
+    const modal = document.getElementById('inAppModal');
+    if (modal) modal.classList.add('hidden');
+}
 

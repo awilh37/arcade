@@ -93,7 +93,7 @@ async function initializeDatabase() {
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           display_name TEXT,
-          tokens INTEGER DEFAULT 1000,
+          tokens INTEGER DEFAULT 100,
           points INTEGER DEFAULT 0,
           role TEXT DEFAULT 'player' CHECK (role IN ('player','muted','admin','banned','owner')),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -135,7 +135,7 @@ async function initializeDatabase() {
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           display_name TEXT,
-          tokens INTEGER DEFAULT 1000,
+          tokens INTEGER DEFAULT 100,
           points INTEGER DEFAULT 0,
           role TEXT DEFAULT 'player' CHECK(role IN ('player', 'muted', 'admin', 'banned', 'owner')),
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -305,13 +305,23 @@ app.put('/api/user/display-name', verifyToken, async (req, res) => {
 
 // Record game result
 app.post('/api/game/result', verifyToken, async (req, res) => {
-  const { game_name, won, points_earned, time_taken } = req.body;
+  const { game_name, won, points_earned, time_taken, wager } = req.body;
 
-  if (!game_name || typeof won !== 'boolean') {
+  if (!game_name || typeof won !== 'boolean' || typeof wager !== 'number') {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
+    // Basic server-side game config to compute token changes
+    const gameConfigs = {
+      coinFlip: { winMultiplier: 2 },
+      numberGuess: { winMultiplier: 3 },
+      reaction: { winMultiplier: 2.5 },
+      matchCards: { winMultiplier: 2.5 }
+    };
+
+    const cfg = gameConfigs[game_name] || { winMultiplier: 1 };
+
     // Insert game result
     await dbRun(
       'INSERT INTO game_results (user_id, game_name, won, points_earned, time_taken) VALUES (?, ?, ?, ?, ?)',
@@ -324,11 +334,22 @@ app.post('/api/game/result', verifyToken, async (req, res) => {
       [points_earned || 0, req.userId]
     );
 
+    // Update tokens: deduct wager, then add winnings if won
+    const userBefore = await dbGet('SELECT tokens FROM users WHERE id = ?', [req.userId]);
+    if (!userBefore) return res.status(404).json({ error: 'User not found' });
+
+    const currentTokens = userBefore.tokens || 0;
+    if (currentTokens < wager) {
+      return res.status(400).json({ error: 'Insufficient tokens' });
+    }
+
+    const winReward = won ? Math.floor(wager * cfg.winMultiplier) : 0;
+    const newTokens = Math.max(0, currentTokens - wager + winReward);
+
+    await dbRun('UPDATE users SET tokens = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newTokens, req.userId]);
+
     // Get updated user
-    const user = await dbGet(
-      'SELECT id, username, display_name, tokens, points FROM users WHERE id = ?',
-      [req.userId]
-    );
+    const user = await dbGet('SELECT id, username, display_name, tokens, points FROM users WHERE id = ?', [req.userId]);
 
     res.json({ success: true, user });
   } catch (error) {
