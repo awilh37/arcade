@@ -1,44 +1,70 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const { Client } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// SQLite Database Setup
+// Database selection: use Postgres when DATABASE_URL is set (Render), otherwise fall back to local SQLite for dev
+const USE_PG = !!process.env.DATABASE_URL;
+let pgClient = null;
+let sqlite3;
+let sqliteDb = null;
 const dbPath = path.join(__dirname, 'arcade.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) console.error('Database open error:', err);
-  else console.log('Connected to SQLite database at', dbPath);
-});
 
-// Promisify database operations
-const dbRun = (sql, params = []) => {
+function convertPlaceholders(sql) {
+  // Convert '?' placeholders to $1, $2 ... for pg
+  let i = 0;
+  return sql.replace(/\?/g, () => {
+    i += 1;
+    return '$' + i;
+  });
+}
+
+// Unified DB helpers (work with Postgres if connected, otherwise SQLite)
+const dbRun = async (sql, params = []) => {
+  if (pgClient) {
+    const q = convertPlaceholders(sql);
+    return pgClient.query(q, params);
+  }
+
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
+    sqliteDb.run(sql, params, function(err) {
       if (err) reject(err);
       else resolve(this);
     });
   });
 };
 
-const dbGet = (sql, params = []) => {
+const dbGet = async (sql, params = []) => {
+  if (pgClient) {
+    const q = convertPlaceholders(sql);
+    const res = await pgClient.query(q, params);
+    return res.rows[0];
+  }
+
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+    sqliteDb.get(sql, params, (err, row) => {
       if (err) reject(err);
       else resolve(row);
     });
   });
 };
 
-const dbAll = (sql, params = []) => {
+const dbAll = async (sql, params = []) => {
+  if (pgClient) {
+    const q = convertPlaceholders(sql);
+    const res = await pgClient.query(q, params);
+    return res.rows;
+  }
+
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    sqliteDb.all(sql, params, (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
@@ -52,40 +78,90 @@ app.use(express.json());
 // ===== DATABASE INITIALIZATION =====
 async function initializeDatabase() {
   try {
-    // Users table
-    await dbRun(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        display_name TEXT,
-        tokens INTEGER DEFAULT 1000,
-        points INTEGER DEFAULT 0,
-        role TEXT DEFAULT 'player' CHECK(role IN ('player', 'muted', 'admin', 'banned', 'owner')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+    if (process.env.DATABASE_URL) {
+      try {
+        // Try connecting to Postgres
+        pgClient = new Client({ connectionString: process.env.DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false });
+        await pgClient.connect();
+        console.log('Connected to Postgres via DATABASE_URL');
 
-    // Game results table
-    await dbRun(`
-      CREATE TABLE IF NOT EXISTS game_results (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        game_name TEXT NOT NULL,
-        won INTEGER NOT NULL,
-        points_earned INTEGER DEFAULT 0,
-        time_taken REAL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-    `);
+        // Create tables with Postgres-compatible SQL
+        await dbRun(`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username TEXT UNIQUE NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          display_name TEXT,
+          tokens INTEGER DEFAULT 1000,
+          points INTEGER DEFAULT 0,
+          role TEXT DEFAULT 'player' CHECK (role IN ('player','muted','admin','banned','owner')),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
 
-    // Set awilh as owner if they exist
-    await dbRun(`
-      UPDATE users SET role = 'owner' WHERE username = 'awilh' AND role != 'owner'
-    `);
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS game_results (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          game_name TEXT NOT NULL,
+          won INTEGER NOT NULL,
+          points_earned INTEGER DEFAULT 0,
+          time_taken REAL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      } catch (pgErr) {
+        console.warn('Postgres connection failed, falling back to SQLite:', pgErr?.message || pgErr);
+        pgClient = null;
+      }
+    }
+
+    if (!pgClient) {
+      // Initialize local SQLite for development
+      sqlite3 = require('sqlite3').verbose();
+      sqliteDb = new sqlite3.Database(dbPath, (err) => {
+        if (err) console.error('Database open error:', err);
+        else console.log('Connected to SQLite database at', dbPath);
+      });
+
+      // SQLite table creation
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          display_name TEXT,
+          tokens INTEGER DEFAULT 1000,
+          points INTEGER DEFAULT 0,
+          role TEXT DEFAULT 'player' CHECK(role IN ('player', 'muted', 'admin', 'banned', 'owner')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await dbRun(`
+        CREATE TABLE IF NOT EXISTS game_results (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          game_name TEXT NOT NULL,
+          won INTEGER NOT NULL,
+          points_earned INTEGER DEFAULT 0,
+          time_taken REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+    }
+
+    // Ensure the owner user is set if the username exists
+    await dbRun(
+      "UPDATE users SET role = 'owner' WHERE username = 'awilh' AND role != 'owner'",
+      []
+    );
 
     console.log('Database tables initialized successfully');
   } catch (error) {
