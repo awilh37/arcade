@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Arcade</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="app" class="app">
+        <!-- Global Header -->
+        <header class="header">
+            <h1 class="logo">🎮 Digital Arcade</h1>
+            <div class="player-stats">
+                <div class="stat auth-only hidden">
+                    <span class="stat-label">Tokens:</span>
+                    <span class="stat-value" id="tokenDisplay">1000</span>
+                </div>
+                <div class="stat auth-only hidden">
+                    <span class="stat-label">Points:</span>
+                    <span class="stat-value" id="pointsDisplay">0</span>
+                </div>
+                <div class="account-dropdown">
+                    <button id="authBtn" class="account-btn">
+                        <span id="displayName">Login</span>
+                        <span class="dropdown-icon">▼</span>
+                    </button>
+                    <div id="accountMenu" class="account-menu hidden">
+                        <button class="menu-item" onclick="openShopModal()">🛒 Shop</button>
+                        <button class="menu-item" onclick="openLeaderboardModal()">🏆 Leaderboard</button>
+                        <button class="menu-item" onclick="openSettingsModal()">⚙️ Settings</button>
+                        <div class="menu-divider"></div>
+                        <button class="menu-item logout-btn" id="logoutBtn">Log Out</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Landing Page (Login) -->
+        <div id="landingPage" class="page active">
+            <div class="landing-container">
+                <div class="landing-content">
+                    <div class="landing-header">
+                        <h1 class="landing-logo">🎮 Digital Arcade</h1>
+                        <p class="landing-tagline">Win Tokens. Earn Points. Become a Legend.</p>
+                    </div>
+
+                    <div class="landing-panels">
+                        <!-- Announcements Panel -->
+                        <div class="panel announcements-panel">
+                            <h3>📢 Announcements</h3>
+                            <div class="news-items" id="landingNews">
+                                <div class="news-item">
+                                    <div class="news-date">Feb 16</div>
+                                    <div class="news-content">
+                                        <h4>New Look!</h4>
+                                        <p>Welcome to the redesigned Arcade. Enjoy the new lobby system!</p>
+                                    </div>
+                                </div>
+                                <div class="news-item">
+                                    <div class="news-date">Feb 15</div>
+                                    <div class="news-content">
+                                        <h4>Connect Four</h4>
+                                        <p>Multiplayer Connect Four is now live. Challenge your friends!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leaderboard Preview -->
+                        <div class="panel leaderboard-panel">
+                            <h3>🏆 Top Players</h3>
+                            <div id="landingLeaderboard" class="leaderboard-list">
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login / Signup Modal -->
+        <div id="loginModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 400px;">
+                <h2 id="authTitle">Login</h2>
+                
+                <!-- Login Form -->
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="loginUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="login-btn">Login</button>
+                </form>
+
+                <!-- Signup Form (Hidden by default) -->
+                <form id="signupForm" class="auth-form hidden">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="signupUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" id="signupDisplayName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="signupEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" required>
+                    </div>
+                    <button type="submit" class="login-btn">Sign Up</button>
+                </form>
+
+                <div class="login-options">
+                    <button class="option-btn active" id="showLoginBtn" onclick="switchAuthMode('login')">Login</button>
+                    <button class="option-btn" id="showSignupBtn" onclick="switchAuthMode('signup')">Sign Up</button>
+                </div>
+                <button class="modal-btn cancel" onclick="closeLoginModal()" style="margin-top: 1rem;">Close</button>
+            </div>
+        </div>
+
+        <!-- Theme Selector Modal -->
+        <div id="themeModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Select Theme</h2>
+                <div class="theme-grid">
+                    <button class="theme-button" onclick="selectTheme('default')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);"></div>
+                        <span>Default</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('ocean')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #0ea5e9, #06b6d4);"></div>
+                        <span>Ocean</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('sunset')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #f97316, #ec4899);"></div>
+                        <span>Sunset</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('forest')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #10b981, #14b8a6);"></div>
+                        <span>Forest</span>
+                    </button>
+                    <button class="theme-button" onclick="selectTheme('midnight')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #1e40af, #3b82f6);"></div>
+                        <span>Midnight</span>
+                    </button>
+                </div>
+                <button class="modal-btn" onclick="closeThemeModal()">Close</button>
+            </div>
+        </div>
+
+        <!-- Main Game Page -->
+        <div id="mainPage" class="page">
+
+            <main class="main-container">
+            <!-- Game Selection Screen (Previously Home/Lobby) -->
+            <section id="gamesScreen" class="screen">
+                <div class="welcome-section">
+                    <h2>Select a Game</h2>
+                    <p>Choose your challenge and dominate the leaderboard!</p>
+                </div>
+
+                <div class="games-grid">
+                    <!-- Connect Four Card -->
+                    <div class="game-card" onclick="openGameInfo('connect_four')">
+                        <div class="game-icon">🔴</div>
+                        <h3>Connect Four</h3>
+                        <p>Classic strategy. Connect 4 to win!</p>
+                        <div class="bet-amount">Win 50 Points</div>
+                    </div>
+                    
+                    <!-- Placeholder Cards -->
+                    <div class="game-card" onclick="openGameInfo('coin_flip')">
+                        <div class="game-icon">🪙</div>
+                        <h3>Coin Flip</h3>
+                        <p>Test your luck. Double or nothing.</p>
+                        <div class="bet-amount">Coming Soon</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Lobby Room (Detailed Lobby View) -->
+            <section id="lobbyRoom" class="screen">
+                <div class="lobby-room">
+                    <div class="lobby-header">
+                        <h2 id="lobbyRoomName">Game Lobby</h2>
+                        <button class="back-btn" onclick="leaveLobby()">Leave Lobby</button>
+                    </div>
+                    
+                    <div class="lobby-status">
+                        <p>Game: <strong id="lobbyGameType">Connect Four</strong></p>
+                        <p>Status: <span id="lobbyStatusText">Waiting for players...</span></p>
+                    </div>
+
+                    <div class="player-list" id="lobbyPlayerList">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <div id="hostControls" class="host-controls hidden">
+                        <button id="startGameBtn" class="primary-btn" disabled>Start Game</button>
+                        <button onclick="closeLobby()" class="modal-btn cancel">Close Lobby</button>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Waiting Screen -->
+            <section id="waitingScreen" class="screen">
+                <div class="waiting-content">
+                    <h2>Waiting for Player 2...</h2>
+                    <div class="spinner"></div>
+                    <p>Share your room name with a friend/competitor!</p>
+                </div>
+            </section>
+
+            <!-- Game Screen -->
+            <section id="gameScreen" class="screen">
+                <div class="game-header">
+                    <h2 id="gameTitle">Connect Four</h2>
+                    <div id="gameStatus" class="status-waiting">Initializing...</div>
+                </div>
+
+                <div id="c4Grid" class="c4-grid">
+                    <!-- 6x7 Grid Generated by JS -->
+                </div>
+            </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Game Info Modal -->
+    <div id="gameInfoModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="infoGameTitle">Game Title</h2>
+                <button class="close-btn" onclick="closeGameInfoModal()">&times;</button>
+            </div>
+            <div class="game-info-body">
+                <p id="infoGameDesc" style="margin-bottom: 2rem; color: var(--text-secondary);">Description...</p>
+                
+                <div class="lobby-section">
+                    <h3>Open Lobbies</h3>
+                    <div id="infoLobbyList" class="lobby-list-small">
+                        <!-- Populated by JS -->
+                        <p>No open lobbies.</p>
+                    </div>
+                    
+                    <div class="create-lobby-section" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <h3>Create New Game</h3>
+                        <div class="lobby-controls">
+                            <input type="text" id="newLobbyName" placeholder="Lobby Name" class="lobby-input">
+                            <button onclick="createLobbyFromModal()" class="primary-btn">Create & Join</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="resultModal" class="modal hidden">
+        <div class="modal-content result-content">
+            <div id="resultIcon" class="result-icon"></div>
+            <h2 id="resultTitle">Game Over</h2>
+            <p id="resultMessage">You won!</p>
+            
+            <div class="result-stats">
+                <div class="result-stat">
+                    <span>Tokens</span>
+                    <span id="resultTokenChange" class="stat-change">+0</span>
+                </div>
+                <div class="result-stat">
+                    <span>Points</span>
+                    <span id="resultPointsChange" class="stat-change">+0</span>
+                </div>
+            </div>
+            
+            <button class="modal-btn" onclick="window.location.reload()">Back to Lobby</button>
+        </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div id="shopModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Arcade Shop</h2>
+            <div class="shop-section">
+                <p>Buy tokens using your points!</p>
+                <div class="shop-row">
+                    <label for="shopTokenAmount">Tokens to buy:</label>
+                    <input type="number" id="shopTokenAmount" min="1" value="10" style="width:80px;">
+                </div>
+                <div class="shop-row">
+                    <span id="shopCostDisplay">Cost: 100 points</span>
+                </div>
+                <button class="modal-btn" onclick="handleBuyTokens()">Buy Tokens</button>
+                <button class="modal-btn cancel" onclick="closeShopModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="settingsTitle">Change Setting</h2>
+            <form onsubmit="handleSettingsSave(event)">
+                <div class="form-group">
+                    <label id="settingsLabel">New Value</label>
+                    <input type="text" id="settingsInput" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="modal-btn">Save</button>
+                    <button type="button" class="modal-btn cancel" onclick="closeSettingsModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div id="leaderboardModal" class="modal hidden">
+        <div class="modal-content leaderboard-modal-content">
+            <div class="modal-header">
+                <h2>Global Leaderboard</h2>
+                <button class="close-btn" onclick="closeLeaderboardModal()">&times;</button>
+            </div>
+            <div id="leaderboardContainer" class="leaderboard-list">
+                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">Loading leaderboard...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chatModal" class="modal hidden">
+        <div class="modal-content chat-modal-content">
+            <div class="modal-header">
+                <h2>Community Chat</h2>
+                <button class="close-btn" onclick="closeChatModal()">&times;</button>
+            </div>
+            <div id="chatMessages" class="chat-messages">
+                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No messages yet. Be the first to chat!</p>
+            </div>
+            <form class="chat-input-form" onsubmit="sendChatMessage(event)">
+                <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200" required>
+                <button type="submit" class="chat-send-btn">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="adminPanelModal" class="modal hidden">
+        <div class="modal-content admin-modal-content">
+            <div class="modal-header">
+                <h2>Admin Panel</h2>
+                <button class="close-btn" onclick="closeAdminPanel()">&times;</button>
+            </div>
+            <div class="admin-search-section">
+                <input type="text" id="adminSearchInput" placeholder="Search users by username..." maxlength="50">
+                <button class="modal-btn" onclick="adminSearchUsers()">Search</button>
+            </div>
+            <div id="adminUsersList" class="admin-users-list">
+                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">Enter a username to search for users</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script type="module" src="js/main.js?v=3.2"></script>
+</body>
+</html>
