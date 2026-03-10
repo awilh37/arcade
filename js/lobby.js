@@ -19,19 +19,9 @@ export function setupLobbyUI() {
     const startBtn = document.getElementById('startGameBtn');
     if (startBtn) {
         startBtn.addEventListener('click', () => {
-             // socket.emit('game_start_req'); 
-             showToast('Info', 'Game starts automatically when 2 players join!', 'info');
+             socket.emit('game_start_req'); 
         });
     }
-
-    // Create Lobby Handling (from Modal)
-    window.createLobbyFromModal = () => {
-        const nameInput = document.getElementById('newLobbyName');
-        const name = nameInput.value.trim();
-        const gameType = window.currentGameType || 'connect_four';
-        
-        socket.emit('lobby_create', { name, gameType });
-    };
 
     // Handle Updates
     socket.on('lobby_update', (lobbies) => {
@@ -85,22 +75,34 @@ export function setupLobbyUI() {
         });
     }
     
-    // Global Leave
-    window.leaveLobby = () => {
-        socket.emit('lobby_leave');
-        teardownLobby();
-    };
-    
-    window.closeLobby = () => {
-        socket.emit('lobby_close');
-        teardownLobby();
-    };
-    
-    // Host Actions
-    window.kickPlayer = (socketId) => {
-        socket.emit('lobby_kick', socketId);
-    };
 }
+
+// Global Exports
+window.createLobbyFromModal = () => {
+    const socket = getSocket();
+    if (!socket) return showToast('Error', 'Not connected to server', 'error');
+    const nameInput = document.getElementById('newLobbyName');
+    const name = nameInput.value.trim();
+    const gameType = window.currentGameType || 'connect_four';
+    socket.emit('lobby_create', { name, gameType });
+};
+
+window.leaveLobby = () => {
+    const socket = getSocket();
+    if (socket) socket.emit('lobby_leave');
+    teardownLobby();
+};
+
+window.closeLobby = () => {
+    const socket = getSocket();
+    if (socket) socket.emit('lobby_close');
+    teardownLobby();
+};
+
+window.kickPlayer = (socketId) => {
+    const socket = getSocket();
+    if (socket) socket.emit('lobby_kick', socketId);
+};
 
 function teardownLobby() {
     currentLobbyId = null;
@@ -179,6 +181,11 @@ function renderLobbyPlayers(players) {
     // Toggle host controls visibility
     if (amIHost && controls) {
         controls.classList.remove('hidden');
+        // Enable Start Game if 2 players
+        const startBtn = document.getElementById('startGameBtn');
+        if (startBtn) {
+            startBtn.disabled = players.length < 2;
+        }
     } else if (controls) {
         controls.classList.add('hidden');
     }

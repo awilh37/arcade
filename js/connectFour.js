@@ -1,5 +1,6 @@
 import { getSocket } from './socket.js';
 import { showToast, showResultModal } from './ui.js';
+import { currentUser } from './auth.js';
 
 let myPlayerIndex = -1; // Are we P1 (0) or P2 (1)?
 let isMyTurn = false;
@@ -31,8 +32,7 @@ export function setupConnectFour() {
         document.getElementById('gameScreen').classList.add('active');
         
         // Who am I?
-        // Who am I?
-        const myUsername = document.getElementById('menuUsername').textContent.trim(); 
+        const myUsername = currentUser ? currentUser.username : ''; 
         myPlayerIndex = data.players.findIndex(name => name === myUsername);
         
         console.log('Game Start:', { players: data.players, me: myUsername, index: myPlayerIndex });

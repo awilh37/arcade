@@ -57,9 +57,12 @@ function updateAuthUI(isLoggedIn) {
         landingPage.classList.remove('active');
         mainPage.classList.add('active'); // Games Grid
         
+        // Hide all screens first, then show games grid
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('gamesScreen').classList.add('active');
+        
         // Header Updates
         document.getElementById('displayName').textContent = Auth.currentUser.display_name;
-        document.getElementById('menuUsername').textContent = Auth.currentUser.username;
         document.querySelectorAll('.auth-only').forEach(el => el.classList.remove('hidden'));
         
         // Dropdown behavior
@@ -170,7 +173,7 @@ window.openGameInfo = (gameKey) => {
     
     if (gameKey === 'connect_four') {
         title = "Connect Four";
-        desc = "Strategic 2-player connection game. Drop discs to forming a line of 4.";
+        desc = "Strategic 2-player connection game. Drop discs to form a line of 4.";
     } else if (gameKey === 'coin_flip') {
         title = "Coin Flip";
         desc = "Simple luck based game.";

@@ -222,23 +222,16 @@ function setupSocket(server, db) {
       playerLobbyMap[socket.id] = lobbyId;
       socket.join(lobbyId);
 
-      // Start Game immediately when 2 players exist
-      lobby.status = "playing";
-      lobby.game = new ConnectFourGame(lobby.players[0], lobby.players[1]);
-
-      // Notify both players
-      io.to(lobbyId).emit("game_start", {
-        players: lobby.players.map((p) => p.username),
-        turn: 0, // Host starts (index 0)
-        board: lobby.game.board,
-        myIndex: -1 // Client will figure this out or we send distinct messages
-      });
+      // DO NOT Start Game immediately when 2 players exist. Wait for host.
+      // We still want to remove from the waiting list if full so no one else joins,
+      // but status remains "waiting" internally for host to start, or we change it to "full".
+      if (lobby.players.length === 2) {
+          lobby.status = "full";
+          broadcastLobbyList(); 
+      }
       
-      // We need to tell each client their index?
-      // Or just send names and let client match username.
-      // Let's send a specific message to each if needed, but username match is easy.
-
-      broadcastLobbyList(); // Remove from waiting list
+      // Notify everyone in lobby about new player
+      io.to(lobbyId).emit("lobby_player_update", lobby.players);
       
       // Notify everyone in lobby about new player
       io.to(lobbyId).emit("lobby_player_update", lobby.players);
@@ -288,6 +281,31 @@ function setupSocket(server, db) {
     // Leave Lobby / Cancel
     socket.on("lobby_leave", () => {
         handleDisconnect(socket);
+    });
+
+    // Start Game (Host only)
+    socket.on("game_start_req", () => {
+        const lobbyId = playerLobbyMap[socket.id];
+        if (!lobbyId) return;
+        const lobby = lobbies[lobbyId];
+        
+        // Only host can start
+        if (!lobby || lobby.hostId !== socket.id) return socket.emit("error", "Not authorized");
+        
+        // Need 2 players
+        if (lobby.players.length !== 2) return socket.emit("error", "Need 2 players to start");
+
+        lobby.status = "playing";
+        if (lobby.gameType === 'connect_four') {
+            lobby.game = new ConnectFourGame(lobby.players[0], lobby.players[1]);
+        }
+        
+        io.to(lobbyId).emit("game_start", {
+            players: lobby.players.map((p) => p.username),
+            turn: 0, 
+            board: lobby.game ? lobby.game.board : []
+        });
+        broadcastLobbyList();
     });
 
     // Game Move
