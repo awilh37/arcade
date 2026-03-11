@@ -17,7 +17,8 @@ export function initSocket() {
 
     // Assuming socket.io client script is loaded in index.html
     socket = io(socketUrl, {
-        auth: { token }
+        auth: { token },
+        path: '/arcade/socket.io/'
     });
 
     socket.on('connect', () => {
