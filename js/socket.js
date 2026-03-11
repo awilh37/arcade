@@ -16,9 +16,12 @@ export function initSocket() {
     console.log('Initializing socket with URL:', socketUrl);
 
     // Assuming socket.io client script is loaded in index.html
+    // When served from /arcade/, need to tell socket.io to use /arcade/socket.io/ path
+    // so Caddy's reverse proxy rule can match and route it correctly
+    const socketPath = window.location.pathname.startsWith('/arcade') ? '/arcade/socket.io/' : '/socket.io/';
     socket = io(socketUrl, {
         auth: { token },
-        path: '/arcade/socket.io/'
+        path: socketPath
     });
 
     socket.on('connect', () => {

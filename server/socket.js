@@ -119,7 +119,6 @@ class ConnectFourGame {
 
 function setupSocket(server, db) {
   const io = new Server(server, {
-    path: '/arcade/socket.io/',
     cors: {
       origin: "*", // Adjust in production
       methods: ["GET", "POST"],
