@@ -6,8 +6,17 @@ export function initSocket() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return null;
 
+    // Determine the socket server URL
+    // Use same protocol and host as the page
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const socketUrl = window.location.hostname === 'localhost' 
+        ? `${protocol}://localhost:5000`
+        : `${protocol}://${window.location.host}`;
+    
+    console.log('Initializing socket with URL:', socketUrl);
+
     // Assuming socket.io client script is loaded in index.html
-    socket = io('http://localhost:5000', {
+    socket = io(socketUrl, {
         auth: { token }
     });
 

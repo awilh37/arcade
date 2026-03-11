@@ -168,12 +168,17 @@ function setupSocket(server, db) {
 
     // Create Lobby
     socket.on("lobby_create", (data) => {
+      console.log('Received lobby_create request:', data);
+      
       // Data can be just name (string) or object { name, gameType }
       const lobbyName = (typeof data === 'object') ? data.name : data;
       const gameType = (typeof data === 'object' && data.gameType) ? data.gameType : 'connect_four';
 
-      // Check if already in a lobby? Ideally yes.
-      if (playerLobbyMap[socket.id]) return;
+      // Check if already in a lobby
+      if (playerLobbyMap[socket.id]) {
+        console.log(`User ${socket.user.username} already in a lobby, rejecting create request`);
+        return socket.emit("error", "You are already in a lobby");
+      }
 
       const lobbyId = "lobby_" + Date.now();
       lobbies[lobbyId] = {
@@ -195,6 +200,8 @@ function setupSocket(server, db) {
       playerLobbyMap[socket.id] = lobbyId;
 
       socket.join(lobbyId);
+      console.log(`Lobby created: ${lobbyId} by ${socket.user.username}`);
+      
       socket.emit("lobby_joined", {
         lobbyId,
         isHost: true,
@@ -232,10 +239,8 @@ function setupSocket(server, db) {
       
       // Notify everyone in lobby about new player
       io.to(lobbyId).emit("lobby_player_update", lobby.players);
-      
-      // Notify everyone in lobby about new player
-      io.to(lobbyId).emit("lobby_player_update", lobby.players);
     });
+
 
     // Host Controls
     socket.on("lobby_kick", (targetSocketId) => {

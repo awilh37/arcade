@@ -4,10 +4,21 @@ import { currentUser } from './auth.js';
 
 let currentLobbyId = null;
 let amIHost = false;
+let lobbyUISetup = false; // Prevent duplicate setup
 
 export function setupLobbyUI() {
     const socket = getSocket();
-    if (!socket) return;
+    if (!socket) {
+        console.warn('Socket not available for lobby UI setup');
+        return;
+    }
+    
+    // Prevent duplicate setup
+    if (lobbyUISetup) {
+        console.warn('Lobby UI already set up');
+        return;
+    }
+    lobbyUISetup = true;
     
     // reset state
     currentLobbyId = null;
@@ -25,6 +36,7 @@ export function setupLobbyUI() {
 
     // Handle Updates
     socket.on('lobby_update', (lobbies) => {
+        console.log('Received lobby_update:', lobbies);
         renderLobbyList(lobbies); 
     });
     
@@ -43,6 +55,7 @@ export function setupLobbyUI() {
     });
     
     socket.on('lobby_player_update', (players) => {
+        console.log('Received lobby_player_update:', players);
         renderLobbyPlayers(players);
     });
 
@@ -62,6 +75,7 @@ export function setupLobbyUI() {
     });
 
     socket.on('error', (msg) => {
+        console.error('Socket error:', msg);
         showToast('Error', msg, 'error');
     });
 
@@ -70,38 +84,70 @@ export function setupLobbyUI() {
         infoLobbyList.addEventListener('click', (e) => {
             if (e.target.classList.contains('join-btn')) {
                 const lobbyId = e.target.dataset.id;
+                console.log('Joining lobby:', lobbyId);
                 socket.emit('lobby_join', lobbyId);
             }
         });
     }
     
+    console.log('Lobby UI setup complete');
 }
 
 // Global Exports
 window.createLobbyFromModal = () => {
     const socket = getSocket();
-    if (!socket) return showToast('Error', 'Not connected to server', 'error');
+    if (!socket) {
+        return showToast('Error', 'Not connected to server', 'error');
+    }
+    
+    if (!socket.connected) {
+        return showToast('Error', 'Connecting to server... Please try again', 'error');
+    }
+    
     const nameInput = document.getElementById('newLobbyName');
+    if (!nameInput) {
+        return showToast('Error', 'Lobby name input not found', 'error');
+    }
+    
     const name = nameInput.value.trim();
     const gameType = window.currentGameType || 'connect_four';
+    
+    if (!name) {
+        return showToast('Warning', 'Please enter a lobby name', 'info');
+    }
+    
+    console.log('Creating lobby:', { name, gameType });
     socket.emit('lobby_create', { name, gameType });
+    
+    // Clear the input field for next use
+    nameInput.value = '';
 };
 
 window.leaveLobby = () => {
     const socket = getSocket();
-    if (socket) socket.emit('lobby_leave');
+    if (socket) {
+        socket.emit('lobby_leave');
+    }
     teardownLobby();
 };
 
 window.closeLobby = () => {
     const socket = getSocket();
-    if (socket) socket.emit('lobby_close');
+    if (socket) {
+        socket.emit('lobby_close');
+    } else {
+        console.warn('Socket not available when closing lobby');
+    }
     teardownLobby();
 };
 
 window.kickPlayer = (socketId) => {
     const socket = getSocket();
-    if (socket) socket.emit('lobby_kick', socketId);
+    if (!socket) {
+        showToast('Error', 'Not connected to server', 'error');
+        return;
+    }
+    socket.emit('lobby_kick', socketId);
 };
 
 function teardownLobby() {
