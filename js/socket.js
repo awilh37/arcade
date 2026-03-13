@@ -6,19 +6,18 @@ export function initSocket() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return null;
 
-    // Determine the socket server URL
-    // Use same protocol and host as the page
-    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    const socketUrl = window.location.hostname === 'localhost' 
-        ? `${protocol}://localhost:5000`
-        : `${protocol}://${window.location.host}`;
-    
+    // Determine the socket server URL.
+    // For local dev, connect to the local backend. For deployed builds, use the configured API base URL.
+    const socketUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:5000'
+        : API_BASE_URL.replace(/\/$/, '');
+
     console.log('Initializing socket with URL:', socketUrl);
 
-    // Assuming socket.io client script is loaded in index.html
-    // When served from /arcade/, need to tell socket.io to use /arcade/socket.io/ path
-    // so Caddy's reverse proxy rule can match and route it correctly
-    const socketPath = window.location.pathname.startsWith('/arcade') ? '/arcade/socket.io/' : '/socket.io/';
+    // Socket.IO will connect to `${socketUrl}${path}`.
+    // When API_BASE_URL contains a path (e.g. /arcade), this will resolve to
+    // `${API_BASE_URL}/socket.io/`.
+    const socketPath = '/socket.io/';
     socket = io(socketUrl, {
         auth: { token },
         path: socketPath
