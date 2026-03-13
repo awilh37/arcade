@@ -1952,3 +1952,206 @@ body {
     font-size: 1.5rem;
     font-weight: bold;
 }
+
+/* Coin Flip Game */
+.coin-flip-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 2rem;
+    gap: 1rem;
+}
+
+.coin-flip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.coin-flip-header h2 {
+    font-size: 2rem;
+}
+
+.coin-flip-game {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.coin-flip-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 600px;
+}
+
+.stat-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.stat-box label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.coin-flip-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    align-items: center;
+    width: 100%;
+}
+
+.position-info {
+    font-size: 1.3rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.coin-container {
+    perspective: 1000px;
+    height: 200px;
+    width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+}
+
+.coin {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.2);
+    transform-style: preserve-3d;
+    position: relative;
+}
+
+.coin-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    backface-visibility: hidden;
+}
+
+.coin-face.front {
+    transform: rotateY(0deg);
+}
+
+.coin-face.back {
+    transform: rotateY(180deg);
+}
+
+@keyframes spin {
+    0% {
+        transform: rotateY(0deg) rotateX(0deg);
+    }
+    100% {
+        transform: rotateY(1800deg) rotateX(360deg);
+    }
+}
+
+.coin {
+    animation: spin 0.6s ease-out forwards;
+}
+
+.guess-buttons {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.guess-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 150px;
+}
+
+.guess-btn:hover:not(:disabled) {
+    background: var(--secondary-color);
+    transform: scale(1.05);
+}
+
+.guess-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.guess-label {
+    font-size: 1.5rem;
+}
+
+.coin-message {
+    font-size: 1.2rem;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.2);
+}
+
+.coin-choices {
+    margin-top: 1rem;
+    text-align: center;
+    max-width: 600px;
+}
+
+.coin-choices.hidden {
+    display: none;
+}
+
+.choice-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+#gambleMoreBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#gambleMoreBtn small {
+    font-size: 0.75rem;
+    opacity: 0.9;
+}

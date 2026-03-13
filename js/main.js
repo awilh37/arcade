@@ -8,6 +8,7 @@ import { setupAdmin } from './admin.js';
 import { initSocket } from './socket.js';
 import { setupLobbyUI } from './lobby.js';
 import { setupConnectFour } from './connectFour.js';
+import { setupCoinFlip } from './coinFlip.js';
 
 // Global Game State
 export const gameState = {
@@ -39,6 +40,7 @@ async function init() {
         if (socket) {
             setupLobbyUI();
             setupConnectFour();
+            setupCoinFlip();
         }
     } else {
         updateAuthUI(false);
@@ -123,6 +125,7 @@ async function handleLoginSubmit(e) {
         if (socket) {
             setupLobbyUI();
             setupConnectFour();
+            setupCoinFlip();
         }
     }
 }
@@ -145,6 +148,7 @@ async function handleSignupSubmit(e) {
         if (socket) {
             setupLobbyUI();
             setupConnectFour();
+            setupCoinFlip();
         }
     }
 }
@@ -176,7 +180,7 @@ window.openGameInfo = (gameKey) => {
         desc = "Strategic 2-player connection game. Drop discs to form a line of 4.";
     } else if (gameKey === 'coin_flip') {
         title = "Coin Flip";
-        desc = "Simple luck based game.";
+        desc = "Fast-paced single-player gambling game. Bet 10 tokens per round, win points, and keep gambling for bigger rewards!";
     }
     
     UI.openGameInfoModal(gameKey, title, desc);
@@ -191,6 +195,11 @@ window.handleSettingsSave = (e) => {
      e.preventDefault();
      /* Implement actual settings save if needed */
      UI.closeSettingsModal();
+};
+
+window.startCoinFlipFromModal = () => {
+    document.getElementById('gameInfoModal').classList.add('hidden');
+    window.startCoinFlipGame?.();
 };
 
 window.openLeaderboardModal = () => document.getElementById('leaderboardModal').classList.remove('hidden');

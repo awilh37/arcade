@@ -460,6 +460,134 @@ function setupSocket(server, db) {
         // Wait, if we delete it, `playerLobbyMap` is cleared.
         // Users are still in the socket room but the server state is gone.
     }
+
+    // ===== COIN FLIP GAME =====
+    socket.on("coin_flip_start", () => {
+        const lobbyId = playerLobbyMap[socket.id];
+        if (!lobbyId) return socket.emit('error', 'You are not in a lobby.');
+
+        const lobby = lobbies[lobbyId];
+        if (!lobby) return socket.emit('error', 'Lobby not found.');
+        if (lobby.gameType !== 'coin_flip') return socket.emit('error', 'Wrong game type.');
+
+        // Single player coin flip, initialize game state
+        lobby.status = "playing";
+        lobby.game = {
+            type: 'coin_flip',
+            round: 0, // Current gamble round (0 = initial bet, 1+ = progressive)
+            accumulatedTokens: 0, // Tokens won so far (not including current bet)
+            accumulatedPoints: 0 // Points won so far
+        };
+
+        socket.emit("coin_flip_ready", {
+            round: 0,
+            betAmount: 10,
+            currentWinnings: 0,
+            pointsWinnings: 0
+        });
+    });
+
+    socket.on("coin_flip_guess", (data) => {
+        const { guess } = data; // 'heads' or 'tails'
+        const lobbyId = playerLobbyMap[socket.id];
+        if (!lobbyId) return socket.emit('error', 'You are not in a lobby.');
+
+        const lobby = lobbies[lobbyId];
+        if (!lobby || lobby.status !== "playing") return socket.emit('error', 'Game not in progress.');
+        if (!lobby.game || lobby.game.type !== 'coin_flip') return socket.emit('error', 'Invalid game state.');
+
+        const game = lobby.game;
+        const betAmount = 10; // Always 10 tokens per round
+
+        // Get user tokens BEFORE deducting the bet
+        db.get('SELECT tokens FROM users WHERE id = ?', [socket.user.userId], (err, user) => {
+            if (err || !user) return socket.emit('error', 'User not found.');
+
+            // Check if user has enough tokens
+            if (user.tokens < betAmount) {
+                return socket.emit('error', 'Not enough tokens to bet.');
+            }
+
+            // Deduct bet immediately
+            db.run('UPDATE users SET tokens = tokens - ? WHERE id = ?', [betAmount, socket.user.userId], (err) => {
+                if (err) {
+                    return socket.emit('error', 'Failed to process bet.');
+                }
+
+                // Flip the coin (50/50)
+                const result = Math.random() < 0.5 ? 'heads' : 'tails';
+                const won = guess === result;
+
+                if (won) {
+                    // Determine winnings for this round
+                    game.round++;
+                    const pointsForRound = 20 * game.round; // 20, 40, 60, etc.
+                    game.accumulatedTokens += betAmount; // Add the bet back
+                    game.accumulatedPoints += pointsForRound;
+
+                    // Award points to user
+                    db.run('UPDATE users SET points = points + ? WHERE id = ?', [pointsForRound, socket.user.userId], (err) => {
+                        if (err) console.error("Failed to update points:", err);
+                    });
+
+                    socket.emit("coin_flip_result", {
+                        guess,
+                        result,
+                        won: true,
+                        pointsThisRound: pointsForRound,
+                        totalPoints: game.accumulatedPoints,
+                        totalTokensRecovered: game.accumulatedTokens,
+                        canGambleMore: true,
+                        nextBetAmount: 10,
+                        nextPointsIfWin: pointsForRound * 2
+                    });
+                } else {
+                    // Lost - all tokens lost (all-or-nothing)
+                    db.run('UPDATE users SET points = points + ? WHERE id = ?', [game.accumulatedPoints, socket.user.userId], (err) => {
+                        if (err) console.error("Failed to finalize points:", err);
+                    });
+
+                    socket.emit("coin_flip_result", {
+                        guess,
+                        result,
+                        won: false,
+                        totalPoints: game.accumulatedPoints,
+                        totalTokensLost: (game.round + 1) * 10, // All tokens from all rounds
+                        message: game.accumulatedPoints > 0 ? `You lost! But kept ${game.accumulatedPoints} points.` : "You lost everything!"
+                    });
+
+                    // End the game
+                    lobby.status = "waiting";
+                    lobby.game = null;
+                }
+            });
+        });
+    });
+
+    socket.on("coin_flip_cash_out", () => {
+        const lobbyId = playerLobbyMap[socket.id];
+        if (!lobbyId) return socket.emit('error', 'You are not in a lobby.');
+
+        const lobby = lobbies[lobbyId];
+        if (!lobby || !lobby.game || lobby.game.type !== 'coin_flip') return;
+
+        const game = lobby.game;
+
+        // Finalize points and end game
+        if (game.accumulatedPoints > 0) {
+            db.run('UPDATE users SET points = points + ? WHERE id = ?', [game.accumulatedPoints, socket.user.userId], (err) => {
+                if (err) console.error("Failed to cash out points:", err);
+            });
+        }
+
+        socket.emit("coin_flip_cashed_out", {
+            totalPoints: game.accumulatedPoints,
+            message: `You cashed out with ${game.accumulatedPoints} points!`
+        });
+
+        lobby.status = "waiting";
+        lobby.game = null;
+    });
   });
 }
 

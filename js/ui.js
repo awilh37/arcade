@@ -215,6 +215,19 @@ export function switchAuthMode(mode) {
 export function openGameInfoModal(gameId, title, desc) {
     document.getElementById('infoGameTitle').innerText = title;
     document.getElementById('infoGameDesc').innerText = desc;
+    
+    // Show appropriate section based on game type
+    const multiplayerSection = document.getElementById('multiplayerSection');
+    const singleplayerSection = document.getElementById('singleplayerSection');
+    
+    if (gameId === 'coin_flip') {
+        multiplayerSection.style.display = 'none';
+        singleplayerSection.style.display = 'block';
+    } else {
+        multiplayerSection.style.display = 'block';
+        singleplayerSection.style.display = 'none';
+    }
+    
     document.getElementById('gameInfoModal').classList.remove('hidden');
     // Store current gameId for lobby creation
     window.currentGameType = gameId; 
