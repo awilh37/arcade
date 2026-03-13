@@ -24,7 +24,8 @@ export function initSocket() {
 
     socket = io(socketUrl, {
         auth: { token },
-        path: socketPath
+        path: socketPath,
+        reconnection: false
     });
 
     socket.on('connect', () => {
