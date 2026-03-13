@@ -27,6 +27,19 @@ export function setupCoinFlip() {
         updateCoinFlipDisplay();
     });
 
+    // Listen for lobby_joined to trigger coin flip start
+    socket.on('lobby_joined', (data) => {
+        console.log('Joined lobby for coin flip:', data);
+        if (data.gameType === 'coin_flip') {
+            // Hide the lobby room (in case lobby.js tries to show it)
+            document.getElementById('lobbyRoom').classList.remove('active');
+            // Auto-start coin flip game
+            setTimeout(() => {
+                socket.emit('coin_flip_start');
+            }, 500);
+        }
+    });
+
     socket.on('coin_flip_result', (data) => {
         console.log('Coin flip result:', data);
         coinFlipState.guessing = false;
@@ -84,7 +97,7 @@ export function setupCoinFlip() {
     });
 
     socket.on('error', (msg) => {
-        if (msg.includes('coin') || msg.includes('guess')) {
+        if (msg.includes('coin') || msg.includes('guess') || msg.includes('lobby')) {
             showToast('Error', msg, 'error');
             coinFlipState.guessing = false;
         }
@@ -98,7 +111,17 @@ export function startCoinFlip() {
         return;
     }
 
-    socket.emit('coin_flip_start');
+    if (!socket.connected) {
+        showToast('Error', 'Connecting to server... Please try again', 'error');
+        return;
+    }
+
+    // Create a single-player lobby for coin flip
+    console.log('Creating coin flip lobby...');
+    socket.emit('lobby_create', { 
+        name: 'Coin Flip Game',
+        gameType: 'coin_flip' 
+    });
 }
 
 // Global alias for HTML onclick
