@@ -153,6 +153,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
 
     res.json({
       user: {
@@ -163,11 +164,46 @@ app.post('/api/auth/login', async (req, res) => {
         points: user.points,
         role: user.role
       },
-      token
+      token,
+      refreshToken
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Refresh Token
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'No refresh token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+    const user = await dbGet('SELECT id, username, display_name, tokens, points, role FROM users WHERE id = ?', [decoded.userId]);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+
+    const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    const newRefreshToken = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        tokens: user.tokens,
+        points: user.points,
+        role: user.role
+      },
+      token,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid refresh token' });
   }
 });
 

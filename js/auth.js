@@ -8,6 +8,7 @@ export async function login(username, password) {
         const data = await apiCall('/api/auth/login', 'POST', { username, password });
         if (data) {
             setAuthToken(data.token);
+            localStorage.setItem('refreshToken', data.refreshToken);
             currentUser = data.user;
             showToast('Success', `Welcome back, ${currentUser.display_name}!`, 'success');
             return true;
@@ -25,6 +26,7 @@ export async function register(username, email, password, display_name) {
         });
         if (data) {
             setAuthToken(data.token);
+            localStorage.setItem('refreshToken', data.refreshToken);
             currentUser = data.user;
             showToast('Success', 'Account created successfully!', 'success');
             return true;
@@ -42,6 +44,24 @@ export function logout() {
     window.location.reload();
 }
 
+export async function refreshToken() {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) return false;
+    try {
+        const data = await apiCall('/api/auth/refresh', 'POST', { refreshToken });
+        if (data) {
+            setAuthToken(data.token);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            currentUser = data.user;
+            return true;
+        }
+    } catch (error) {
+        setAuthToken(null);
+        localStorage.removeItem('refreshToken');
+    }
+    return false;
+}
+
 export async function checkAuth() {
     try {
         const user = await apiCall('/api/user');
@@ -50,7 +70,19 @@ export async function checkAuth() {
             return true;
         }
     } catch (error) {
-        // Token might be invalid
+        // Try to refresh token
+        const refreshed = await refreshToken();
+        if (refreshed) {
+            try {
+                const user = await apiCall('/api/user');
+                if (user) {
+                    currentUser = user;
+                    return true;
+                }
+            } catch (error) {
+                // Still failed
+            }
+        }
         setAuthToken(null);
     }
     return false;

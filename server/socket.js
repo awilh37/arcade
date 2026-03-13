@@ -229,6 +229,15 @@ function setupSocket(server, db) {
       playerLobbyMap[socket.id] = lobbyId;
       socket.join(lobbyId);
 
+      // Notify the joining player
+      socket.emit("lobby_joined", {
+        lobbyId,
+        isHost: false,
+        name: lobby.name,
+        gameType: lobby.gameType,
+        players: lobby.players
+      });
+
       // DO NOT Start Game immediately when 2 players exist. Wait for host.
       // We still want to remove from the waiting list if full so no one else joins,
       // but status remains "waiting" internally for host to start, or we change it to "full".
