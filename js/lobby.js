@@ -119,6 +119,27 @@ window.createLobbyFromModal = () => {
     console.log('Creating lobby:', { name, gameType });
     socket.emit('lobby_create', { name, gameType });
     
+    // Immediately switch to lobby screen
+    const data = {
+        lobbyId: null, // Will be updated when server responds
+        isHost: true,
+        name: name,
+        gameType: gameType,
+        players: [{
+            username: currentUser.username,
+            socketId: socket.id,
+            id: currentUser.id
+        }]
+    };
+    
+    currentLobbyId = null;
+    amIHost = true;
+    
+    document.getElementById('gameInfoModal').classList.add('hidden');
+    showLobbyRoom(data);
+    renderLobbyPlayers(data.players);
+    showToast('Success', `Created lobby: ${name}`, 'success');
+    
     // Clear the input field for next use
     nameInput.value = '';
 };
