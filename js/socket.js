@@ -6,6 +6,20 @@ export function initSocket() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return null;
 
+    // If we already have a connected socket, reuse it.
+    if (socket && socket.connected) {
+        console.log('Reusing existing socket:', socket.id);
+        return socket;
+    }
+
+    // Clean up any previous socket instance to avoid duplicates.
+    if (socket) {
+        console.log('Disconnecting previous socket instance');
+        socket.off();
+        socket.disconnect();
+        socket = null;
+    }
+
     // Determine the socket server URL.
     // For local dev, connect to the local backend. For deployed builds, use the configured API base URL.
     // Note: Socket.IO expects the URL to be the origin (no extra path), and the path option controls the socket endpoint.
