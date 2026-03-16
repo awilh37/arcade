@@ -66,12 +66,12 @@ export function setupConnectFour() {
         }
         
         const points = data.pointsEarned || 0;
-        showResultModal(won, points);
-        
+        showResultModal(won, 0, points, msg);
+
         // Refresh to update header points/tokens after a delay
         setTimeout(() => {
             document.getElementById('resultModal').classList.add('hidden');
-            window.location.reload(); 
+            window.location.reload();
         }, 5000);
     });
 }

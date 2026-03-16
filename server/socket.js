@@ -508,7 +508,7 @@ function setupSocket(server, db) {
                 return socket.emit('error', 'Not enough tokens to bet.');
             }
 
-            // Deduct bet immediately
+            // Deduct bet immediately (always consumed)
             db.run('UPDATE users SET tokens = tokens - ? WHERE id = ?', [betAmount, socket.user.userId], (err) => {
                 if (err) {
                     return socket.emit('error', 'Failed to process bet.');
@@ -519,16 +519,17 @@ function setupSocket(server, db) {
                 const won = guess === result;
 
                 if (won) {
-                    // Determine winnings for this round
+                    // Determine winnings for this round and accumulate on server (not yet awarded until cash-out)
                     game.round++;
-                    const pointsForRound = 20 * game.round; // 20, 40, 60, etc.
-                    game.accumulatedTokens += betAmount; // Add the bet back
+                    let pointsForRound = 0;
+                    if (game.round === 1) pointsForRound = 20;
+                    else if (game.round === 2) pointsForRound = 10;
+                    else pointsForRound = game.round * 10;
+
                     game.accumulatedPoints += pointsForRound;
 
-                    // Award points to user
-                    db.run('UPDATE users SET points = points + ? WHERE id = ?', [pointsForRound, socket.user.userId], (err) => {
-                        if (err) console.error("Failed to update points:", err);
-                    });
+                    // Send result without writing points yet (all-or-nothing policy)
+                    const nextPotential = game.accumulatedPoints + (game.round === 1 ? 10 : (game.round === 2 ? 30 : (game.round + 1) * 10));
 
                     socket.emit("coin_flip_result", {
                         guess,
@@ -536,24 +537,23 @@ function setupSocket(server, db) {
                         won: true,
                         pointsThisRound: pointsForRound,
                         totalPoints: game.accumulatedPoints,
-                        totalTokensRecovered: game.accumulatedTokens,
+                        totalTokensSpent: game.round * 10,
                         canGambleMore: true,
                         nextBetAmount: 10,
-                        nextPointsIfWin: pointsForRound * 2
+                        nextPotentialPoints: nextPotential
                     });
                 } else {
-                    // Lost - all tokens lost (all-or-nothing)
-                    db.run('UPDATE users SET points = points + ? WHERE id = ?', [game.accumulatedPoints, socket.user.userId], (err) => {
-                        if (err) console.error("Failed to finalize points:", err);
-                    });
+                    // Lost - all points lost
+                    const totalTokensLost = (game.round + 1) * 10;
+                    const finalPoints = 0;
 
                     socket.emit("coin_flip_result", {
                         guess,
                         result,
                         won: false,
-                        totalPoints: game.accumulatedPoints,
-                        totalTokensLost: (game.round + 1) * 10, // All tokens from all rounds
-                        message: game.accumulatedPoints > 0 ? `You lost! But kept ${game.accumulatedPoints} points.` : "You lost everything!"
+                        totalPoints: finalPoints,
+                        totalTokensLost,
+                        message: 'You lost everything this run.'
                     });
 
                     // End the game
@@ -573,16 +573,19 @@ function setupSocket(server, db) {
 
         const game = lobby.game;
 
-        // Finalize points and end game
+        // Award accumulated points and end game
         if (game.accumulatedPoints > 0) {
             db.run('UPDATE users SET points = points + ? WHERE id = ?', [game.accumulatedPoints, socket.user.userId], (err) => {
                 if (err) console.error("Failed to cash out points:", err);
             });
         }
 
+        const tokenSpent = game.round * 10;
+
         socket.emit("coin_flip_cashed_out", {
             totalPoints: game.accumulatedPoints,
-            message: `You cashed out with ${game.accumulatedPoints} points!`
+            totalTokensSpent: tokenSpent,
+            message: `You cashed out with ${game.accumulatedPoints} points after spending ${tokenSpent} tokens.`
         });
 
         lobby.status = "waiting";

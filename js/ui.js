@@ -150,7 +150,7 @@ export function setupModals() {
 }
 
 
-export function showResultModal(won, pointsChange) {
+export function showResultModal(won, tokenDelta, pointsDelta, extraText = '') {
     const modal = document.getElementById('resultModal');
     const resultIcon = document.getElementById('resultIcon');
     const resultTitle = document.getElementById('resultTitle');
@@ -161,19 +161,19 @@ export function showResultModal(won, pointsChange) {
     if (won) {
         resultIcon.textContent = '🎉';
         resultTitle.textContent = 'You Won!';
-        resultMessage.textContent = pointsChange > 0 ? `You earned ${pointsChange} points!` : 'You earned no points.';
-        resultTokenChange.textContent = '+0';
-        resultTokenChange.style.color = 'var(--success-color)';
-        resultPointsChange.textContent = `+${pointsChange}`;
-        resultPointsChange.style.color = 'var(--success-color)';
+        resultMessage.textContent = extraText || 'You won this round!';
+        resultTokenChange.textContent = tokenDelta >= 0 ? `+${tokenDelta}` : `${tokenDelta}`;
+        resultTokenChange.style.color = tokenDelta >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+        resultPointsChange.textContent = pointsDelta >= 0 ? `+${pointsDelta}` : `${pointsDelta}`;
+        resultPointsChange.style.color = pointsDelta >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
     } else {
         resultIcon.textContent = '😢';
-        resultTitle.textContent = 'You Lost!';
-        resultMessage.textContent = 'Better luck next time!';
-        resultTokenChange.textContent = '+0'; // Tokens already deducted
-        resultTokenChange.style.color = 'var(--danger-color)';
-        resultPointsChange.textContent = '+0';
-        resultPointsChange.style.color = 'var(--danger-color)';
+        resultTitle.textContent = 'You Lost';
+        resultMessage.textContent = extraText || 'Better luck next time!';
+        resultTokenChange.textContent = tokenDelta >= 0 ? `+${tokenDelta}` : `${tokenDelta}`;
+        resultTokenChange.style.color = tokenDelta >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+        resultPointsChange.textContent = pointsDelta >= 0 ? `+${pointsDelta}` : `${pointsDelta}`;
+        resultPointsChange.style.color = pointsDelta >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
     }
 
     modal.classList.remove('hidden');

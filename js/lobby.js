@@ -42,13 +42,18 @@ export function setupLobbyUI() {
     
     socket.on('lobby_joined', (data) => {
         showToast('Success', `Joined lobby: ${data.name}`, 'success');
-        
+
         currentLobbyId = data.lobbyId;
         amIHost = data.isHost;
-        
+
         // Hide Game Info Modal
         document.getElementById('gameInfoModal').classList.add('hidden');
-        
+
+        if (data.gameType === 'coin_flip') {
+            // Coin flip handles its own game screen; do not show shared lobby screen.
+            return;
+        }
+
         // Show Lobby Room
         showLobbyRoom(data);
         renderLobbyPlayers(data.players || []);

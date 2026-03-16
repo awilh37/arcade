@@ -4,7 +4,7 @@ import { showToast } from './ui.js';
 let coinFlipState = {
     round: 0,
     accumulatedPoints: 0,
-    accumulatedTokens: 0,
+    tokensSpent: 0,
     guessing: false
 };
 
@@ -18,7 +18,7 @@ export function setupCoinFlip() {
         coinFlipState = {
             round: data.round,
             accumulatedPoints: data.pointsWinnings,
-            accumulatedTokens: data.currentWinnings,
+            tokensSpent: 0,
             guessing: true
         };
 
@@ -54,46 +54,55 @@ export function setupCoinFlip() {
             // Update state
             coinFlipState.round = data.round || (coinFlipState.round + 1);
             coinFlipState.accumulatedPoints = data.totalPoints;
-            coinFlipState.accumulatedTokens = data.totalTokensRecovered || coinFlipState.accumulatedTokens;
+            coinFlipState.tokensSpent = data.totalTokensSpent;
+            coinFlipState.guessing = false;
 
             // Show result
-            messageEl.textContent = `✅ Correct! ${data.result.toUpperCase()} - You won ${data.pointsThisRound} points!`;
+            messageEl.textContent = `✅ Correct! ${data.result.toUpperCase()} - You won ${data.pointsThisRound} points this round.`;
             messageEl.style.display = 'block';
             messageEl.style.color = 'var(--success-color)';
 
             // Show choices
-            choiceMsg.innerHTML = `<strong>You have ${data.totalPoints} points and ${data.totalTokensRecovered} tokens recovered!</strong><br>Do you want to gamble more for a bigger reward?`;
+            choiceMsg.innerHTML = `<strong>You have ${data.totalPoints} points and have spent ${data.totalTokensSpent} tokens.</strong><br>Do you want to gamble more for a bigger reward?`;
             gambleBtn.style.display = 'block';
-            gambleReward.textContent = `Bet 10 more tokens for ${data.nextPointsIfWin} points?`;
+            gambleReward.textContent = `Bet 10 more tokens for ${data.nextPotentialPoints} points total?`;
 
             choicesEl.classList.remove('hidden');
-
-            // Disable guess buttons
             document.querySelectorAll('.guess-btn').forEach(btn => btn.disabled = true);
+            updateCoinFlipDisplay();
+
         } else {
             // Lost everything
             const totalLost = data.totalTokensLost;
-            const finalPoints = data.totalPoints;
 
             messageEl.textContent = `❌ Incorrect! You guessed ${data.guess.toUpperCase()}, but it was ${data.result.toUpperCase()}`;
             messageEl.style.display = 'block';
             messageEl.style.color = 'var(--danger-color)';
 
-            choiceMsg.innerHTML = `<strong>Game Over!</strong><br>You lost ${totalLost} tokens but earned ${finalPoints} points total.`;
+            choiceMsg.innerHTML = `<strong>Game Over!</strong><br>You lost ${totalLost} tokens and scored 0 points this run.`;
             gambleBtn.style.display = 'none';
 
             choicesEl.classList.remove('hidden');
-
-            // Disable guess buttons
             document.querySelectorAll('.guess-btn').forEach(btn => btn.disabled = true);
+
+            // Show final result modal and return to menu shortly
+            window.showResultModal(false, -totalLost, 0, 'All-or-nothing loss - better luck next time.');
+            setTimeout(() => {
+                document.getElementById('resultModal').classList.add('hidden');
+                window.leaveLobby();
+            }, 3000);
         }
     });
 
     socket.on('coin_flip_cashed_out', (data) => {
-        showToast('Success', `Cashed out with ${data.totalPoints} points!`, 'success');
+        const tokensMoved = data.totalTokensSpent ? -data.totalTokensSpent : 0;
+        window.showResultModal(true, tokensMoved, data.totalPoints, data.message || 'Cashed out successfully.');
+
+        // Return to game select after result screen
         setTimeout(() => {
-            window.location.reload();
-        }, 2000);
+            document.getElementById('resultModal').classList.add('hidden');
+            window.leaveLobby();
+        }, 3000);
     });
 
     socket.on('error', (msg) => {
@@ -178,10 +187,11 @@ window.coinFlipCashOut = () => {
 
 function updateCoinFlipDisplay() {
     document.getElementById('coinFlipPoints').textContent = coinFlipState.accumulatedPoints;
-    document.getElementById('coinFlipTokens').textContent = coinFlipState.accumulatedTokens;
+    document.getElementById('coinFlipTokens').textContent = coinFlipState.tokensSpent;
     document.getElementById('coinFlipBet').textContent = '10';
 
     const nextRound = coinFlipState.round + 1;
-    const pointsForNextRound = 20 * nextRound;
-    document.getElementById('coinFlipRound').textContent = `Round ${nextRound}: Guess Correctly = ${pointsForNextRound} Points`;
+    const pointsForNextRound = nextRound === 1 ? 20 : (nextRound === 2 ? 10 : nextRound * 10);
+    const totalIfWin = coinFlipState.accumulatedPoints + pointsForNextRound;
+    document.getElementById('coinFlipRound').textContent = `Round ${nextRound}: Bet 10 for ${pointsForNextRound} points (total possible ${totalIfWin})`;
 }
