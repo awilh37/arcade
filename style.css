@@ -97,6 +97,15 @@ body {
     margin-top: 1rem;
 }
 
+.login-btn {
+    background: transparent;
+    border: 1px solid var(--text-secondary);
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
 .option-btn {
     background: transparent;
     border: 1px solid var(--text-secondary);
